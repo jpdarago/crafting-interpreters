@@ -1,8 +1,11 @@
 const std = @import("std");
 
+const Ast = @import("ast.zig");
+const Interpreter = @import("interpreter.zig");
 const Scanner = @import("scanner.zig");
 
-const Ast = @import("ast.zig");
+const Expr = Ast.Expr;
+const LoxValue = Ast.LoxValue;
 
 const Self = @This();
 
@@ -12,50 +15,61 @@ current: usize,
 
 tokens: []const Scanner.Token,
 
-nodes: std.ArrayList(Ast.Expr),
+// We use a segmented list to ensure pointer stability.
+nodes: std.SegmentedList(Expr, 64),
 
-ast: *Ast.Expr,
+ast: ?*Expr,
+
+interpreter: *Interpreter,
 
 pub fn init(
     allocator: std.mem.Allocator, 
-    tokens: []const Scanner.Token
-) void {
+    interpreter: *Interpreter,
+    tokens: []const Scanner.Token,
+) Self {
     return Self {
         .allocator = allocator,
+        .interpreter = interpreter,
         .tokens = tokens,
         .current = 0,
-        .nodes = .empty,
+        .nodes = std.SegmentedList(Expr, 64) {},
         .ast = null,
     };
 }
 
-pub fn expression(self: *Self) !Ast.Expr {
+pub fn deinit(self: *Self) void {
+    self.nodes.deinit(self.allocator);
+}
+
+pub fn expression(self: *Self) !*Expr {
     return self.equality();
 }
 
-fn equality(self: *Self) !Ast.Expr {
-    var expr = self.comparison();
-
-    while (self.match(.{.BANG_EQUAL, .EQUAL_EQUAL})) {
-        const operator = self.previous();
-        const right = self.comparison();
-        try self.nodes.append(self.allocator, Ast.Expr.make( Ast.Binary {
-            expr, operator, right 
-        }));
-        expr = &self.nodes.getLast();
-    }
-    return expr;
+fn make_node(self: *Self, node: anytype) !*Expr {
+    try self.nodes.append(self.allocator, undefined);
+    const p = self.nodes.at(self.nodes.len - 1);
+    p.* = Expr.make(node);
+    return p;
 }
 
-fn match(self: *Self, args: []const Scanner.Token) bool {
-    for (args) |tok| {
+fn match(self: *Self, comptime args: anytype) bool {
+
+    inline for (args) |tok| {
         if (self.check(tok)) {
-            self.advance();
+            _ = self.advance();
             return true;
         }
     } 
 
     return false;
+}
+
+fn check(self: *Self, tok: Scanner.TokenType) bool {
+    if (self.peek()) |token| {
+        return token.type == tok;
+    } else {
+        return false;
+    }
 }
 
 fn at_end(self: *Self) bool {
@@ -77,4 +91,177 @@ fn advance(self: *Self) ?Scanner.Token {
         self.current += 1;
     }
     return self.previous();
+}
+
+fn equality(self: *Self) !*Expr {
+    var expr = try self.comparison();
+
+    while (self.match(.{.BANG_EQUAL, .EQUAL_EQUAL})) {
+
+        const operator = self.previous();
+        const right = try self.comparison();
+
+        expr = self.make_node(Expr.Binary {
+            .left = expr, 
+            .operator = operator, 
+            .right = right 
+        });
+    }
+
+    return expr;
+}
+
+fn comparison(self: *Self) !*Expr {
+
+    var expr = try self.term();
+
+    while (self.match(.{.GREATER, .GREATER_EQUAL, .LESS, .LESS_EQUAL})) {
+
+        const operator = self.previous();
+        const right = try self.term();
+
+        expr = self.make_node(Expr.Binary {
+            .left = expr, 
+            .operator = operator, 
+            .right = right 
+        });
+    }
+
+    return expr;
+}
+
+fn term(self: *Self) !*Expr {
+
+    var expr = try self.factor();
+
+    while (self.match(.{.MINUS, .PLUS})) {
+
+        const operator = self.previous();
+        const right = self.factor();
+
+        expr = self.make_node(Expr.Binary {
+            .left = expr, 
+            .operator = operator, 
+            .right = right 
+        });
+    }
+
+    return expr;
+}
+
+fn factor(self: *Self) !*Expr {
+    
+    var expr = try self.unary();
+
+    while (self.match(.{.SLASH, .STAR})) {
+        
+        const operator = self.previous();
+        const right = self.unary();
+
+        expr = self.make_node(Expr.Binary {
+            .left = expr,
+            .operator = operator,
+            .right = right
+        });
+    }
+
+    return expr;
+}
+
+fn unary(self: *Self) !*Expr {
+
+    if (self.match(.{.BANG, .MINUS})) {
+        
+        const operator = self.previous();
+        const right = try self.unary();
+
+        return self.make_node(Expr.Unary {
+            .operator = operator.?,
+            .expression = right
+        });
+    }
+
+    return self.primary();
+}
+
+fn primary(self: *Self) !*Expr {
+
+    if (self.match(.{.FALSE})) {
+
+        const value = LoxValue {
+            .boolean = false
+        };
+
+        return self.make_node(Expr.Literal { 
+            .value = value 
+        });
+    }
+
+    if (self.match(.{.TRUE})) {
+
+        const value = LoxValue {
+            .boolean = true
+        };
+
+        return self.make_node(Expr.Literal { 
+            .value = value 
+        });
+    }
+
+    if (self.match(.{.NIL})) {
+
+        const value : LoxValue = .nil;
+
+        return self.make_node(Expr.Literal { 
+            .value = value 
+        });
+    }
+
+    const token = self.tokens[self.current];
+
+    if (self.match(.{.NUMBER})) {
+
+        const fp = try std.fmt.parseFloat(f64, token.lexeme);
+
+        const value = LoxValue {
+            .number = fp
+        };
+
+        return self.make_node(Expr.Literal { 
+            .value = value 
+        });
+    }
+
+    if (self.match(.{.STRING})) {
+
+        const value = LoxValue {
+            .string = token.lexeme
+        };
+
+        return self.make_node(Expr.Literal { 
+            .value = value
+        });
+    }
+
+    if (self.match(.{ .LEFT_PAREN })) {
+
+        const expr = self.expression();
+        self.consume(.RIGHT_PAREN, "Expect ')' after expression.");
+
+        return self.make_node(Expr.Grouping {
+            .expression =  expr
+        });
+    }
+}
+
+test "parses comparisons" {
+    const gpa = std.testing.allocator;
+    var interpreter = Interpreter.init(gpa);
+    var scanner = Scanner.init(gpa, &interpreter, "");
+    defer scanner.deinit();
+    const tokens = try scanner.scan();
+    var parser = Self.init(gpa, &interpreter, tokens);
+    defer parser.deinit();
+    const expr = try parser.expression();
+    expr.print();
 }
