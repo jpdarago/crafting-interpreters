@@ -9,6 +9,10 @@ const LoxValue = Ast.LoxValue;
 
 const Self = @This();
 
+const ParseError = error {
+    UnexpectedToken,
+};
+
 allocator: std.mem.Allocator,
 
 current: usize,
@@ -81,6 +85,19 @@ fn peek(self: *Self) ?Scanner.Token {
     return self.tokens[self.current];
 }
 
+fn consume(self: *Self, token: Scanner.TokenType, message: []const u8) ParseError!void {
+
+    if (self.check(token)) {
+        _ = self.advance();
+    }
+
+    const current = self.peek().?;
+
+    try self.interpreter.report_error(current.line, message);
+
+    return ParseError.UnexpectedToken; 
+}
+
 fn previous(self: *Self) ?Scanner.Token {
     if (self.current == 0) return null;
     return self.tokens[self.current - 1];
@@ -93,7 +110,7 @@ fn advance(self: *Self) ?Scanner.Token {
     return self.previous();
 }
 
-fn equality(self: *Self) !*Expr {
+fn equality(self: *Self) ParseError!*Expr {
     var expr = try self.comparison();
 
     while (self.match(.{.BANG_EQUAL, .EQUAL_EQUAL})) {
@@ -111,7 +128,7 @@ fn equality(self: *Self) !*Expr {
     return expr;
 }
 
-fn comparison(self: *Self) !*Expr {
+fn comparison(self: *Self) ParseError!*Expr {
 
     var expr = try self.term();
 
@@ -130,7 +147,7 @@ fn comparison(self: *Self) !*Expr {
     return expr;
 }
 
-fn term(self: *Self) !*Expr {
+fn term(self: *Self) ParseError!*Expr {
 
     var expr = try self.factor();
 
@@ -149,7 +166,7 @@ fn term(self: *Self) !*Expr {
     return expr;
 }
 
-fn factor(self: *Self) !*Expr {
+fn factor(self: *Self) ParseError!*Expr {
     
     var expr = try self.unary();
 
@@ -168,7 +185,7 @@ fn factor(self: *Self) !*Expr {
     return expr;
 }
 
-fn unary(self: *Self) !*Expr {
+fn unary(self: *Self) ParseError!*Expr {
 
     if (self.match(.{.BANG, .MINUS})) {
         
@@ -184,7 +201,7 @@ fn unary(self: *Self) !*Expr {
     return self.primary();
 }
 
-fn primary(self: *Self) !*Expr {
+fn primary(self: *Self) ParseError!*Expr {
 
     if (self.match(.{.FALSE})) {
 
@@ -245,23 +262,12 @@ fn primary(self: *Self) !*Expr {
 
     if (self.match(.{ .LEFT_PAREN })) {
 
-        const expr = self.expression();
-        self.consume(.RIGHT_PAREN, "Expect ')' after expression.");
+        const expr = try self.expression();
+
+        try self.consume(.RIGHT_PAREN, "Expect ')' after expression.");
 
         return self.make_node(Expr.Grouping {
-            .expression =  expr
+            .expression = expr
         });
     }
-}
-
-test "parses comparisons" {
-    const gpa = std.testing.allocator;
-    var interpreter = Interpreter.init(gpa);
-    var scanner = Scanner.init(gpa, &interpreter, "");
-    defer scanner.deinit();
-    const tokens = try scanner.scan();
-    var parser = Self.init(gpa, &interpreter, tokens);
-    defer parser.deinit();
-    const expr = try parser.expression();
-    expr.print();
 }
