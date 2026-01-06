@@ -85,40 +85,24 @@ test "Loops and stuff" {
 
     var scanner = Scanner.init(gpa, &interpreter, code);
     defer scanner.deinit();
-    const expected = [_]Token{ 
-        .{
-            .type = .WHILE,
-            .lexeme = "while",
-            .line = 0,
-            .offset = 0
-        },
-        .{
-            .type = .LEFT_PAREN,
-            .lexeme = "(",
-            .line = 0,
-            .offset = 0
-        },
-        .{
-            .type = .IDENTIFIER,
-            .lexeme = "a",
-            .line = 0,
-            .offset = 0
-        },
-        .{
-            .type = .LESS,
-            .lexeme = "<",
-            .line = 0,
-            .offset = 0
-        },
-        .{
-            .type = .NUMBER,
-            .lexeme = "10",
-            .line = 0,
-            .offset = 0
-        },
+    const expected = [_]TokenType{ 
+        .WHILE,
+        .LEFT_PAREN,
+        .IDENTIFIER,
+        .LESS,
+        .NUMBER,
+        .RIGHT_PAREN,
+        .LEFT_BRACE,
+        .PRINT,
+        .IDENTIFIER,
+        .SEMICOLON,
+        .RIGHT_BRACE,
     };
     const got = try scanner.scan();
-    try checkTokens(&expected, got);
+    try std.testing.expectEqual(got.len, expected.len);
+    for (expected, got) |e, g| {
+        try std.testing.expectEqual(e, g.type);
+    }
 }
 
 test "scanning numbers and operations" {
