@@ -15,8 +15,8 @@ pub fn init(allocator: std.mem.Allocator) Self {
     };
 }
 
-pub fn report_error(self: *Self, line: usize, message: []const u8) !void {
-    try self.report("<inline>", line, "{s}", .{message});
+pub fn report_error(self: *Self, line: usize, message: []const u8) void {
+    self.report("<inline>", line, "{s}", .{message});
 }
 
 pub fn report(
@@ -25,10 +25,14 @@ pub fn report(
     line: usize, 
     comptime fmt: []const u8, 
     args: anytype
-) !void {
+) void {
     var stderr_buffer : [1024]u8 = undefined;
-    _ = try std.fmt.bufPrint(&stderr_buffer, "[{s}:{d}]" ++ fmt, .{where, line} ++ args);
-    try Stdfile.stderr().writeAll(&stderr_buffer);
+    _ = std.fmt.bufPrint(&stderr_buffer, "[{s}:{d}]" ++ fmt, .{where, line} ++ args) catch |err| {
+        std.debug.panic("Broken bufprint: {s}", .{@errorName(err)});
+    };
+    Stdfile.stderr().writeAll(&stderr_buffer) catch |err| {
+        std.debug.panic("Broken stderr stream: {s}", .{@errorName(err)});
+    };
     self.had_error = true;
 }
 

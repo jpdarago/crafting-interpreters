@@ -11,6 +11,9 @@ const Self = @This();
 
 const ParseError = error {
     UnexpectedToken,
+    ExpressionExpected,
+    FloatError,
+    OutOfMemory
 };
 
 allocator: std.mem.Allocator,
@@ -93,7 +96,7 @@ fn consume(self: *Self, token: Scanner.TokenType, message: []const u8) ParseErro
 
     const current = self.peek().?;
 
-    try self.interpreter.report_error(current.line, message);
+    self.interpreter.report_error(current.line, message);
 
     return ParseError.UnexpectedToken; 
 }
@@ -115,10 +118,10 @@ fn equality(self: *Self) ParseError!*Expr {
 
     while (self.match(.{.BANG_EQUAL, .EQUAL_EQUAL})) {
 
-        const operator = self.previous();
+        const operator = self.previous().?;
         const right = try self.comparison();
 
-        expr = self.make_node(Expr.Binary {
+        expr = try self.make_node(Expr.Binary {
             .left = expr, 
             .operator = operator, 
             .right = right 
@@ -134,10 +137,10 @@ fn comparison(self: *Self) ParseError!*Expr {
 
     while (self.match(.{.GREATER, .GREATER_EQUAL, .LESS, .LESS_EQUAL})) {
 
-        const operator = self.previous();
+        const operator = self.previous().?;
         const right = try self.term();
 
-        expr = self.make_node(Expr.Binary {
+        expr = try self.make_node(Expr.Binary {
             .left = expr, 
             .operator = operator, 
             .right = right 
@@ -153,10 +156,10 @@ fn term(self: *Self) ParseError!*Expr {
 
     while (self.match(.{.MINUS, .PLUS})) {
 
-        const operator = self.previous();
-        const right = self.factor();
+        const operator = self.previous().?;
+        const right = try self.factor();
 
-        expr = self.make_node(Expr.Binary {
+        expr = try self.make_node(Expr.Binary {
             .left = expr, 
             .operator = operator, 
             .right = right 
@@ -172,10 +175,10 @@ fn factor(self: *Self) ParseError!*Expr {
 
     while (self.match(.{.SLASH, .STAR})) {
         
-        const operator = self.previous();
-        const right = self.unary();
+        const operator = self.previous().?;
+        const right = try self.unary();
 
-        expr = self.make_node(Expr.Binary {
+        expr = try self.make_node(Expr.Binary {
             .left = expr,
             .operator = operator,
             .right = right
@@ -238,7 +241,10 @@ fn primary(self: *Self) ParseError!*Expr {
 
     if (self.match(.{.NUMBER})) {
 
-        const fp = try std.fmt.parseFloat(f64, token.lexeme);
+        const fp = std.fmt.parseFloat(f64, token.lexeme) catch {
+            self.interpreter.report_error(token.line, "Unparseable float");
+            return ParseError.FloatError;
+        };
 
         const value = LoxValue {
             .number = fp
@@ -270,4 +276,8 @@ fn primary(self: *Self) ParseError!*Expr {
             .expression = expr
         });
     }
+
+    self.interpreter.report_error(self.peek().?.line, "Expected expression");
+
+    return ParseError.ExpressionExpected;
 }

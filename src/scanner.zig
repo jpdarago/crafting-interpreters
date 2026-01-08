@@ -163,7 +163,7 @@ fn scan_token(self: *Self) !void {
 
             } else {
 
-                try self.report_error("Unknown token");
+                self.report_error("Unknown token");
             }
         }
     };
@@ -238,7 +238,7 @@ fn handle_string(self: *Self) !void {
     }
 
     if (self.at_end()) {
-        try self.report_error("Unterminated string");
+        self.report_error("Unterminated string");
         return;
     }
 
@@ -247,8 +247,8 @@ fn handle_string(self: *Self) !void {
     try self.add_token_with_lexeme(.STRING, self.code[self.start+1..self.current-1]);
 }
 
-fn report_error(self: *Self, message: []const u8) !void {
-    try self.interpreter.report_error(self.line, message);
+fn report_error(self: *Self, message: []const u8) void {
+    self.interpreter.report_error(self.line, message);
 }
 
 fn consume(self: *Self) ?u8 {
