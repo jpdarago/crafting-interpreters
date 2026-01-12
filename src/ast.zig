@@ -10,14 +10,16 @@ pub const LoxValue = union(enum) {
     string: []const u8,
     nil,
 
-    pub fn print(self: *const Self) void {
-        switch (self) {
-            .number => |n| std.debug.print("{d}", .{n}),
-            .boolean => |b| std.debug.print("{s}", .{b}),
-            .string => |s| std.debug.print("{s}", .{s}),
-            .nil => |n| std.debug.print("nil", .{n}),
+    pub fn write(self: *const Self, writer: *std.io.Writer) void {
+
+        switch (self.*) {
+            .number => |n| writer.print("{d}", .{n}),
+            .boolean => |b| writer.print("{b}", .{b}),
+            .string => |s| writer.print("{s}", .{s}),
+            .nil => |_| writer.print("nil"),
         }
     }
+
 };
 
 pub const Expr = union(enum) {
@@ -87,10 +89,34 @@ pub const Expr = union(enum) {
         }
 
         @compileError("Expr.make: type " ++ @typeName(T) ++ " is not a valid Expr variant");
-}
+    }
+
+    pub fn write(self: *const Ref, writer: *std.io.Writer) !void {
+
+        switch (self.*) {
+            .literal => |lit| {
+                try lit.value.write(writer);
+            },
+            .grouping => |grp| {
+                try writer.write("(");
+                try grp.expression.write(writer);
+                try writer.write(")");
+            },
+            .unary => |un| {
+                try writer.write(un.operator.lexeme);
+                try un.expression.write(un.expression);
+            },
+            .binary => |bin| {
+                try bin.left.write(writer);
+                try writer.write(bin.operator);
+                try bin.right.write(writer);
+            }
+        }
+    }
 
     binary: Binary,
     grouping: Grouping,
     literal: Literal,
     unary: Unary,
 };
+

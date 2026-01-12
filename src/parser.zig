@@ -237,9 +237,10 @@ fn primary(self: *Self) ParseError!*Expr {
         });
     }
 
-    const token = self.tokens[self.current];
 
     if (self.match(.{.NUMBER})) {
+
+        const token = self.tokens[self.current];
 
         const fp = std.fmt.parseFloat(f64, token.lexeme) catch {
             self.interpreter.report_error(token.line, "Unparseable float");
@@ -256,6 +257,8 @@ fn primary(self: *Self) ParseError!*Expr {
     }
 
     if (self.match(.{.STRING})) {
+
+        const token = self.tokens[self.current];
 
         const value = LoxValue {
             .string = token.lexeme
@@ -277,7 +280,16 @@ fn primary(self: *Self) ParseError!*Expr {
         });
     }
 
-    self.interpreter.report_error(self.peek().?.line, "Expected expression");
+    if (self.at_end()) {
+
+        // TODO(jp): Fix properly.
+        self.interpreter.report_error(9999, "Expected expression");
+
+    } else {
+
+        self.interpreter.report_error(self.previous().?.line, "Expected expression");
+    }
+
 
     return ParseError.ExpressionExpected;
 }

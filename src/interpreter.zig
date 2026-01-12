@@ -27,10 +27,10 @@ pub fn report(
     args: anytype
 ) void {
     var stderr_buffer : [1024]u8 = undefined;
-    _ = std.fmt.bufPrint(&stderr_buffer, "[{s}:{d}]" ++ fmt, .{where, line} ++ args) catch |err| {
+    const buf = std.fmt.bufPrint(&stderr_buffer, "[{s}:{d}]" ++ fmt ++ "\n", .{where, line} ++ args) catch |err| {
         std.debug.panic("Broken bufprint: {s}", .{@errorName(err)});
     };
-    Stdfile.stderr().writeAll(&stderr_buffer) catch |err| {
+    _ = Stdfile.stderr().write(buf) catch |err| {
         std.debug.panic("Broken stderr stream: {s}", .{@errorName(err)});
     };
     self.had_error = true;
