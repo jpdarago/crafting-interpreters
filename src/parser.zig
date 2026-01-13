@@ -48,7 +48,11 @@ pub fn deinit(self: *Self) void {
     self.nodes.deinit(self.allocator);
 }
 
-pub fn expression(self: *Self) !*Expr {
+pub fn parse(self: *Self) !*Expr {
+    return self.expression();
+}
+
+fn expression(self: *Self) !*Expr {
     return self.equality();
 }
 
@@ -92,6 +96,7 @@ fn consume(self: *Self, token: Scanner.TokenType, message: []const u8) ParseErro
 
     if (self.check(token)) {
         _ = self.advance();
+        return;
     }
 
     const current = self.peek().?;
@@ -237,13 +242,12 @@ fn primary(self: *Self) ParseError!*Expr {
         });
     }
 
-
     if (self.match(.{.NUMBER})) {
 
-        const token = self.tokens[self.current];
+        const token = self.previous().?;
 
         const fp = std.fmt.parseFloat(f64, token.lexeme) catch {
-            self.interpreter.report_error(token.line, "Unparseable float");
+            self.interpreter.report("<inline>", token.line, "Unparseable float [{s}]", .{token.lexeme});
             return ParseError.FloatError;
         };
 
@@ -258,7 +262,7 @@ fn primary(self: *Self) ParseError!*Expr {
 
     if (self.match(.{.STRING})) {
 
-        const token = self.tokens[self.current];
+        const token = self.previous().?;
 
         const value = LoxValue {
             .string = token.lexeme

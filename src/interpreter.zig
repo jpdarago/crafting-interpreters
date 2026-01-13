@@ -27,7 +27,7 @@ pub fn report(
     args: anytype
 ) void {
     var stderr_buffer : [1024]u8 = undefined;
-    const buf = std.fmt.bufPrint(&stderr_buffer, "[{s}:{d}]" ++ fmt ++ "\n", .{where, line} ++ args) catch |err| {
+    const buf = std.fmt.bufPrint(&stderr_buffer, "[{s}:{d}] " ++ fmt ++ "\n", .{where, line} ++ args) catch |err| {
         std.debug.panic("Broken bufprint: {s}", .{@errorName(err)});
     };
     _ = Stdfile.stderr().write(buf) catch |err| {

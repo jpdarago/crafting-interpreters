@@ -10,13 +10,13 @@ pub const LoxValue = union(enum) {
     string: []const u8,
     nil,
 
-    pub fn write(self: *const Self, writer: *std.io.Writer) void {
+    pub fn write(self: *const Self, writer: *std.io.Writer) !void {
 
         switch (self.*) {
-            .number => |n| writer.print("{d}", .{n}),
-            .boolean => |b| writer.print("{b}", .{b}),
-            .string => |s| writer.print("{s}", .{s}),
-            .nil => |_| writer.print("nil"),
+            .number => |n| try writer.print("{d}", .{n}),
+            .boolean => |b| try writer.print("{s}", .{if (b) "true" else "false"}),
+            .string => |s| _ = try writer.write(s),
+            .nil => { _ = try writer.write("nil"); },
         }
     }
 
@@ -33,35 +33,19 @@ pub const Expr = union(enum) {
 
         operator: Scanner.Token,
         
-        right: *Ref,
-
-        pub fn print(self: *const Self) void {
-            self.left.print();
-            std.debug.print(" {s} ", .{self.operator.lexeme});
-            self.right.print();
-        }
+        right: *Ref
     };
 
     pub const Grouping = struct {
         const Self = @This();
         
-        expression: *Ref,
-
-        pub fn print(self: *const Self) void {
-            std.debug.print("(");
-            self.expression.print();
-            std.debug.print(")");
-        }
+        expression: *Ref
     };
 
     pub const Literal = struct {
         const Self = @This();
 
-        value: LoxValue,
-
-        pub fn print(self: *const Self) void {
-            self.value.print();
-        }
+        value: LoxValue
     };
 
     pub const Unary = struct {
@@ -69,12 +53,7 @@ pub const Expr = union(enum) {
 
         operator: Scanner.Token,
 
-        expression: *Ref,
-
-        pub fn print(self: *const Self) void {
-            std.debug.print("{s}", .{self.operator.lexeme});
-            self.expression.print();
-        }
+        expression: *Ref
     };
 
     pub fn make(value: anytype) Ref {
@@ -98,18 +77,25 @@ pub const Expr = union(enum) {
                 try lit.value.write(writer);
             },
             .grouping => |grp| {
-                try writer.write("(");
+                _ = try writer.write("(group ");
                 try grp.expression.write(writer);
-                try writer.write(")");
+                _ = try writer.write(")");
             },
             .unary => |un| {
-                try writer.write(un.operator.lexeme);
-                try un.expression.write(un.expression);
+                _ = try writer.write("(");
+                _ = try writer.write(un.operator.lexeme);
+                _ = try writer.write(" ");
+                try un.expression.write(writer);
+                _ = try writer.write(")");
             },
             .binary => |bin| {
+                _ = try writer.write("(");
+                _ = try writer.write(bin.operator.lexeme);
+                _ = try writer.write(" ");
                 try bin.left.write(writer);
-                try writer.write(bin.operator);
+                _ = try writer.write(" ");
                 try bin.right.write(writer);
+                _ = try writer.write(")");
             }
         }
     }
@@ -119,4 +105,3 @@ pub const Expr = union(enum) {
     literal: Literal,
     unary: Unary,
 };
-
