@@ -1,6 +1,7 @@
 const std = @import("std");
 
-const Interpreter = @import("interpreter.zig");
+const Diagnostics = @import("diagnostics.zig");
+const Driver = @import("driver.zig");
 
 const Scanner = @import("scanner.zig");
 
@@ -36,11 +37,12 @@ pub fn main() !void {
         try arguments.append(allocator, std.mem.sliceTo(arg, 0));
     }
 
-    var interpreter = Interpreter.init(allocator);
+    var diagnostics = Diagnostics.init(allocator);
+    var driver = Driver.init(allocator, &diagnostics);
 
     try switch (arguments.items.len) {
-        1 => interpreter.run_prompt(),
-        2 => interpreter.run_file(arguments.items[1]),
+        1 => driver.run_prompt(),
+        2 => driver.run_file(arguments.items[1]),
         else => {
             try stderr.print("Usage {s} [file]?", .{arguments.items[0]});
             try stderr.flush();

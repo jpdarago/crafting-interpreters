@@ -1,7 +1,7 @@
 const std = @import("std");
 
 const Ast = @import("ast.zig");
-const Interpreter = @import("interpreter.zig");
+const Diagnostics = @import("diagnostics.zig");
 const Scanner = @import("scanner.zig");
 
 const Expr = Ast.Expr;
@@ -27,16 +27,16 @@ nodes: std.SegmentedList(Expr, 64),
 
 ast: ?*Expr,
 
-interpreter: *Interpreter,
+diagnostics: *Diagnostics,
 
 pub fn init(
     allocator: std.mem.Allocator, 
-    interpreter: *Interpreter,
+    diagnostics: *Diagnostics,
     tokens: []const Scanner.Token,
 ) Self {
     return Self {
         .allocator = allocator,
-        .interpreter = interpreter,
+        .diagnostics = diagnostics,
         .tokens = tokens,
         .current = 0,
         .nodes = std.SegmentedList(Expr, 64) {},
@@ -101,7 +101,7 @@ fn consume(self: *Self, token: Scanner.TokenType, message: []const u8) ParseErro
 
     const current = self.peek().?;
 
-    self.interpreter.report_error(current.line, message);
+    self.diagnostics.report_error(current.line, message);
 
     return ParseError.UnexpectedToken; 
 }
@@ -247,7 +247,7 @@ fn primary(self: *Self) ParseError!*Expr {
         const token = self.previous().?;
 
         const fp = std.fmt.parseFloat(f64, token.lexeme) catch {
-            self.interpreter.report("<inline>", token.line, "Unparseable float [{s}]", .{token.lexeme});
+            self.diagnostics.report("<inline>", token.line, "Unparseable float [{s}]", .{token.lexeme});
             return ParseError.FloatError;
         };
 
@@ -287,11 +287,11 @@ fn primary(self: *Self) ParseError!*Expr {
     if (self.at_end()) {
 
         // TODO(jp): Fix properly.
-        self.interpreter.report_error(9999, "Expected expression");
+        self.diagnostics.report_error(9999, "Expected expression");
 
     } else {
 
-        self.interpreter.report_error(self.previous().?.line, "Expected expression");
+        self.diagnostics.report_error(self.previous().?.line, "Expected expression");
     }
 
 

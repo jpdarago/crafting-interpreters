@@ -2,7 +2,7 @@
 const std = @import("std");
 
 const Ast = @import("ast.zig");
-const Interpreter = @import("interpreter.zig");
+const Diagnostics = @import("diagnostics.zig");
 const Scanner = @import("scanner.zig");
 const Parser = @import("parser.zig");
 
@@ -10,14 +10,14 @@ fn test_parser(expression: []const u8, expected: []const u8) !void {
 
     const gpa = std.testing.allocator;
 
-    var interpreter = Interpreter.init(gpa);
+    var diagnostics = Diagnostics.init(gpa);
 
-    var scanner = Scanner.init(gpa, &interpreter, expression);
+    var scanner = Scanner.init(gpa, &diagnostics, expression);
     defer scanner.deinit();
 
     const tokens = try scanner.scan();
 
-    var parser = Parser.init(gpa, &interpreter, tokens);
+    var parser = Parser.init(gpa, &diagnostics, tokens);
     defer parser.deinit();
 
     const expr = try parser.parse();

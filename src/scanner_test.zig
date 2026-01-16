@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const Interpreter = @import("interpreter.zig");
+const Diagnostics = @import("diagnostics.zig");
 
 const Scanner = @import("scanner.zig");
 
@@ -19,8 +19,8 @@ fn checkTokens(expected: []const Token, got: []const Token) !void {
 
 test "expect scanner to handle basic parsing" {
     const gpa = std.testing.allocator;
-    var interpreter = Interpreter.init(gpa);
-    var scanner = Scanner.init(gpa, &interpreter, "true");
+    var diagnostics = Diagnostics.init(gpa);
+    var scanner = Scanner.init(gpa, &diagnostics, "true");
     defer scanner.deinit();
     const expected = [_]Token{ 
         .{
@@ -36,11 +36,11 @@ test "expect scanner to handle basic parsing" {
 
 test "strings" {
     const gpa = std.testing.allocator;
-    var interpreter = Interpreter.init(gpa);
+    var diagnostics = Diagnostics.init(gpa);
     const code = 
         \\"hola como te va"
     ;
-    var scanner = Scanner.init(gpa, &interpreter, code);
+    var scanner = Scanner.init(gpa, &diagnostics, code);
     defer scanner.deinit();
     const expected = [_]Token{ 
         .{
@@ -57,8 +57,8 @@ test "strings" {
 test "scanning floating point" {
     const gpa = std.testing.allocator;
     
-    var interpreter = Interpreter.init(gpa);
-    var scanner = Scanner.init(gpa, &interpreter, "12345.993");
+    var diagnostics = Diagnostics.init(gpa);
+    var scanner = Scanner.init(gpa, &diagnostics, "12345.993");
     defer scanner.deinit();
     const expected = [_]Token{ 
         .{
@@ -75,7 +75,7 @@ test "scanning floating point" {
 test "Loops and stuff" {
     const gpa = std.testing.allocator;
     
-    var interpreter = Interpreter.init(gpa);
+    var diagnostics = Diagnostics.init(gpa);
 
     const code = 
         \\ while (a < 10) {
@@ -83,7 +83,7 @@ test "Loops and stuff" {
         \\ }
     ;
 
-    var scanner = Scanner.init(gpa, &interpreter, code);
+    var scanner = Scanner.init(gpa, &diagnostics, code);
     defer scanner.deinit();
     const expected = [_]TokenType{ 
         .WHILE,
@@ -107,11 +107,11 @@ test "Loops and stuff" {
 
 test "scanning numbers and operations" {
     const gpa = std.testing.allocator;
-    var interpreter = Interpreter.init(gpa);
+    var diagnostics = Diagnostics.init(gpa);
     const code = 
         \\(2 + 3 * 5)
     ;
-    var scanner = Scanner.init(gpa, &interpreter, code);
+    var scanner = Scanner.init(gpa, &diagnostics, code);
     defer scanner.deinit();
     const expected = [_]Token{ 
         .{
@@ -163,8 +163,8 @@ test "scanning numbers and operations" {
 
 test "expect handling multiple lines" {
     const gpa = std.testing.allocator;
-    var interpreter = Interpreter.init(gpa);
-    var scanner = Scanner.init(gpa, &interpreter, "true and false");
+    var diagnostics = Diagnostics.init(gpa);
+    var scanner = Scanner.init(gpa, &diagnostics, "true and false");
     defer scanner.deinit();
     const expected = [_]Token{ 
         .{
@@ -193,8 +193,8 @@ test "expect handling multiple lines" {
 
 test "expect scanner to handle multiple tokens" {
     const gpa = std.testing.allocator;
-    var interpreter = Interpreter.init(gpa);
-    var scanner = Scanner.init(gpa, &interpreter, "true and false");
+    var diagnostics = Diagnostics.init(gpa);
+    var scanner = Scanner.init(gpa, &diagnostics, "true and false");
     defer scanner.deinit();
     const expected = [_]Token{ 
         .{

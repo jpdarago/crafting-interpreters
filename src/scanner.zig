@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const Interpreter = @import("interpreter.zig");
+const Diagnostics = @import("diagnostics.zig");
 
 pub const TokenType = enum {
   // Single-character tokens.
@@ -57,7 +57,7 @@ const Self = @This();
 
 allocator: std.mem.Allocator,
 
-interpreter: *Interpreter,
+diagnostics: *Diagnostics,
 
 code: []const u8,
 
@@ -76,12 +76,12 @@ line: usize,
 
 pub fn init(
     allocator: std.mem.Allocator, 
-    interpreter: *Interpreter, 
+    diagnostics: *Diagnostics, 
     code: []const u8
 ) Self {
     return Self {
         .allocator = allocator,
-        .interpreter = interpreter,
+        .diagnostics = diagnostics,
         .code = code,
         .tokens = .empty,
         .current = 0,
@@ -248,7 +248,7 @@ fn handle_string(self: *Self) !void {
 }
 
 fn report_error(self: *Self, message: []const u8) void {
-    self.interpreter.report_error(self.line, message);
+    self.diagnostics.report_error(self.line, message);
 }
 
 fn consume(self: *Self) ?u8 {
