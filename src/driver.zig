@@ -2,6 +2,12 @@ const std = @import("std");
 
 const Diagnostics = @import("diagnostics.zig");
 
+const Scanner = @import("scanner.zig");
+
+const Parser = @import("parser.zig");
+
+const Interpreter = @import("interpreter.zig");
+
 const Self = @This();
 
 const Stdfile = std.fs.File;
@@ -18,15 +24,33 @@ pub fn init(allocator: std.mem.Allocator, diagnostics: *Diagnostics) Self {
 }
 
 pub fn run(self: *Self, code: []const u8) !void {
-    _ = self;
-    _ = code;
+    var scanner = Scanner.init(self.allocator, self.diagnostics, code);
+    defer scanner.deinit();
+
+    const tokens = try scanner.scan();
+
+    var parser = Parser.init(self.allocator, self.diagnostics, tokens);
+    defer parser.deinit();
+
+    var interpreter = Interpreter.init(self.allocator, self.diagnostics, &parser);
+
+    const value = try interpreter.evaluate();
+
+    var buffer : [1024]u8 = undefined;
+
+    var stdout = Stdfile.stdout().writer(&buffer);
+
+    try value.write(&stdout.interface);
+    _ = try stdout.interface.write("\n");
+
+    try stdout.interface.flush();
 }
 
 pub fn run_prompt(self: *Self) !void {
     const stdin = Stdfile.stdin();
     const stdout = Stdfile.stdout();
 
-    var buffer : [4096]u8 = undefined;
+    var buffer : [1024]u8 = undefined;
     var in = stdin.reader(&buffer);
 
     var line = std.Io.Writer.Allocating.init(self.allocator);
