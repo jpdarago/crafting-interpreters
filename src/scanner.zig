@@ -133,7 +133,7 @@ fn scan_token(self: *Self) !void {
             try self.add_token(if (self.match('=')) .GREATER_EQUAL else .GREATER);
         },
         '=' => {
-            try self.add_token(if (self.match('=')) .BANG_EQUAL else .BANG);
+            try self.add_token(if (self.match('=')) .EQUAL_EQUAL else .EQUAL);
         },
         '/' => {
             if (self.match('/')) {
