@@ -67,7 +67,11 @@ pub fn run_prompt(self: *Self) !void {
         };
         _ = in.interface.toss(1);
 
-        try self.run(line.written());
+         self.run(line.written()) catch |err| blk: {
+            if (!self.diagnostics.has_errors()) {
+                break :blk err;
+            }
+        } catch |err| return err;
     }
 
     if (line.written().len > 0) {

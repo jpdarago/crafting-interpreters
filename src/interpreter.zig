@@ -197,7 +197,7 @@ fn is_truthy(val: Ast.LoxValue) bool {
 
 fn check_same_tag(self: *Self, token: Scanner.Token, lhs: Ast.LoxValue, rhs: Ast.LoxValue) !void {
     if (@intFromEnum(lhs) != @intFromEnum(rhs)) {
-        self.diagnostics.report_error(token.line, "Mistmatched types");
+        self.diagnostics.report_error(token.line, "Mismatched types");
         return error.TypeMismatch;
     }
 }
