@@ -286,14 +286,12 @@ fn primary(self: *Self) ParseError!*Expr {
 
     if (self.at_end()) {
 
-        // TODO(jp): Fix properly.
-        self.diagnostics.report_error(9999, "Expected expression");
+        self.diagnostics.report("<eof>", 0, "Expected expression", .{});
 
     } else {
 
         self.diagnostics.report_error(self.previous().?.line, "Expected expression");
     }
-
 
     return ParseError.ExpressionExpected;
 }
