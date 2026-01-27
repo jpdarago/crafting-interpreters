@@ -6,6 +6,8 @@ const Scanner = @import("scanner.zig");
 
 const Expr = Ast.Expr;
 const LoxValue = Ast.LoxValue;
+const Program = Ast.Program;
+const Stmt = Ast.Stmt;
 
 const Self = @This();
 
@@ -48,8 +50,41 @@ pub fn deinit(self: *Self) void {
     self.nodes.deinit(self.allocator);
 }
 
-pub fn parse(self: *Self) !*Expr {
-    return self.expression();
+pub fn parse(self: *Self) !Program {
+
+    var program = Program.init(self.allocator);
+
+    while (!self.at_end()) {
+        try program.statements.append(self.allocator, try self.statement());
+    }
+
+    return program;
+}
+
+fn statement(self: *Self) !Stmt {
+    if (self.match(.{.PRINT})) {
+        return self.print_statement();
+    }
+
+    return self.expression_statement();
+}
+
+fn print_statement(self: *Self) !Stmt {
+
+    const expr = try self.expression();
+
+    try self.consume(.SEMICOLON, "Expected ';' after value");
+
+    return Stmt { .print = Stmt.Print { .expression = expr.* } };
+}
+
+pub fn expression_statement(self: *Self) !Stmt {
+
+    const expr = try self.expression();
+
+    try self.consume(.SEMICOLON, "Expected ';' after value");
+
+    return Stmt { .expression = Stmt.Expression { .expression = expr.* } };
 }
 
 fn expression(self: *Self) !*Expr {
@@ -94,8 +129,17 @@ fn peek(self: *Self) ?Scanner.Token {
 
 fn consume(self: *Self, token: Scanner.TokenType, message: []const u8) ParseError!void {
 
+    if (self.at_end()) {
+
+        self.diagnostics.report_error(0, message);
+
+        return ParseError.ExpressionExpected;
+    }
+
     if (self.check(token)) {
+
         _ = self.advance();
+
         return;
     }
 

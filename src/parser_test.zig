@@ -36,9 +36,9 @@ fn test_parser(expression: []const u8, expected: []const u8) !void {
 
 test "parses expressions" {
 
-    try test_parser("1 + (2 * 3)", "(+ 1 (group (* 2 3)))");
+    try test_parser("1 + (2 * 3);", "(+ 1 (group (* 2 3)))");
 
-    try test_parser("1 + 2 + 3", "(+ (+ 1 2) 3)");
+    try test_parser("1 + 2 + 3;", "(+ (+ 1 2) 3)");
 
-    try test_parser("(1 + 4) + (2 * 3)", "(+ (group (+ 1 4)) (group (* 2 3)))");
+    try test_parser("(1 + 4) + (2 * 3);", "(+ (group (+ 1 4)) (group (* 2 3)))");
 }

@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const Ast = @import("ast.zig");
+
 const Diagnostics = @import("diagnostics.zig");
 
 const Scanner = @import("scanner.zig");
@@ -23,7 +25,8 @@ pub fn init(allocator: std.mem.Allocator, diagnostics: *Diagnostics) Self {
     };
 }
 
-pub fn run(self: *Self, code: []const u8) !void {
+pub fn run(self: *Self, code: []const u8) !Ast.LoxValue {
+
     var scanner = Scanner.init(self.allocator, self.diagnostics, code);
     defer scanner.deinit();
 
@@ -34,7 +37,12 @@ pub fn run(self: *Self, code: []const u8) !void {
 
     var interpreter = Interpreter.init(self.allocator, self.diagnostics, &parser);
 
-    const value = try interpreter.evaluate();
+    return try interpreter.evaluate();
+}
+
+pub fn run_and_print(self: *Self, code: []const u8) !void {
+
+    const value = try self.run(code);
 
     var buffer : [1024]u8 = undefined;
 
@@ -67,7 +75,7 @@ pub fn run_prompt(self: *Self) !void {
         };
         _ = in.interface.toss(1);
 
-         self.run(line.written()) catch |err| blk: {
+         self.run_and_print(line.written()) catch |err| blk: {
             if (!self.diagnostics.has_errors()) {
                 break :blk err;
             }
@@ -75,7 +83,7 @@ pub fn run_prompt(self: *Self) !void {
     }
 
     if (line.written().len > 0) {
-        try self.run(line.written());
+        try self.run_and_print(line.written());
     }
 }
 
@@ -84,7 +92,7 @@ pub fn run_file(self: *Self, file : []const u8) !void {
     const MAX_SIZE_IN_BYTES = 256 * 1024 * 1024;
     const data = try std.fs.cwd().readFileAlloc(self.allocator, file, MAX_SIZE_IN_BYTES); 
     defer self.allocator.free(data);
-    try self.run(data);
+    _ = try self.run(data);
     if (self.diagnostics.has_errors()) {
         std.process.exit(65);
     }

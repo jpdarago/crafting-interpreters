@@ -32,15 +32,15 @@ fn test_interpreter(expression: []const u8, expected: Ast.LoxValue) !void {
 
 test "evaluates expressions" {
 
-    try test_interpreter("1 + 2", Ast.LoxValue { .number = 3 });
+    try test_interpreter("1 + 2;", Ast.LoxValue { .number = 3 });
 
-    try test_interpreter("1 + 2 * 3", Ast.LoxValue { .number = 7 });
+    try test_interpreter("1 + 2 * 3;", Ast.LoxValue { .number = 7 });
 
-    try test_interpreter("(1 + 2) * 3", Ast.LoxValue { .number = 9 });
+    try test_interpreter("(1 + 2) * 3;", Ast.LoxValue { .number = 9 });
 
-    try test_interpreter("1 == 1", Ast.LoxValue { .boolean = true });
+    try test_interpreter("1 == 1;", Ast.LoxValue { .boolean = true });
 
-    try test_interpreter("1 == 2", Ast.LoxValue { .boolean = false });
+    try test_interpreter("1 == 2;", Ast.LoxValue { .boolean = false });
 
-    try test_interpreter("1 != 2", Ast.LoxValue { .boolean = true });
+    try test_interpreter("1 != 2;", Ast.LoxValue { .boolean = true });
 }

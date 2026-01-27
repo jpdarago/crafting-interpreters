@@ -105,3 +105,80 @@ pub const Expr = union(enum) {
     literal: Literal,
     unary: Unary,
 };
+
+pub const Stmt = union(enum) {
+       
+    const Ref = @This();
+
+    pub const Expression = struct {
+        const Self = @This();
+
+        expression: Expr,
+
+        pub fn write(self: *const Self, writer: *std.io.Writer) !void {
+            try self.expression.write(writer);
+        }
+    };
+
+    pub const Print = struct {
+        const Self = @This();
+
+        expression: Expr,
+
+        pub fn write(self: *const Self, writer: *std.io.Writer) !void {
+            _ = try writer.write("(print ");
+            try self.expression.write(writer);
+            _ = try writer.write(")");
+        }
+    };
+
+    expression: Expression,
+    print: Print,
+
+    pub fn write(self: *const Ref, writer: *std.io.Writer) !void {
+        switch (self.*) {
+            .expression => |expr| try expr.write(writer),
+            .print => |expr| try expr.write(writer),
+        }
+    }
+};
+
+const StatementList = std.SegmentedList(Stmt, 16);
+
+pub const Program = struct {
+
+    allocator: std.mem.Allocator,
+
+    statements: StatementList,
+
+    const Self = @This();
+
+    pub fn init(allocator: std.mem.Allocator) Program {
+
+        return Self {
+            .allocator = allocator,
+            .statements = StatementList {},
+        };
+    }
+
+    pub fn deinit(self: *Self) void {
+        self.statements.deinit(self.allocator);
+    }
+
+    pub fn write(self: *const Self, writer: *std.io.Writer) !void {
+
+        var it = self.statements.constIterator(0);
+
+        var i : usize = 0;
+
+        while (it.next())  |stmt| {
+            try stmt.write(writer);
+
+            if (i + 1 < self.statements.len) {
+                _ = try writer.write("\n");
+            }
+
+            i += 1;
+        }
+    }
+};

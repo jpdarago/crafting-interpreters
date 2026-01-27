@@ -8,6 +8,8 @@ const Scanner = @import("scanner.zig");
 
 const Parser = @import("parser.zig");
 
+const Stdfile = std.fs.File;
+
 const Self = @This();
 
 allocator: std.mem.Allocator,
@@ -34,10 +36,43 @@ pub fn init(allocator: std.mem.Allocator, diagnostics: *Diagnostics, parser: *Pa
 
 pub fn evaluate(self: *Self) !Ast.LoxValue {
     const ast = try self.parser.parse();
-    return self.evaluate_expr(ast);
+
+    var result : Ast.LoxValue = .nil;
+
+    var it = ast.statements.constIterator(0);
+
+    while (it.next()) |stmt| {
+        result = try self.evaluate_statement(stmt);        
+    }
+
+    return result;
 }
 
-fn evaluate_expr(self: *Self, expr: *Ast.Expr) !Ast.LoxValue {
+fn evaluate_statement(self: *Self, stmt: *const Ast.Stmt) !Ast.LoxValue {
+
+    switch (stmt.*) {
+        .expression => |expr| { 
+            return try self.evaluate_expr(&expr.expression);
+        },
+        .print => |print| {
+
+            var value = try self.evaluate_expr(&print.expression);
+
+            var buffer : [1024]u8 = undefined;
+
+            var stdout = Stdfile.stdout().writer(&buffer);
+
+            try value.write(&stdout.interface);
+            _ = try stdout.interface.write("\n");
+
+            try stdout.interface.flush();
+
+            return .nil;
+        }
+    }
+}
+
+fn evaluate_expr(self: *Self, expr: *const Ast.Expr) !Ast.LoxValue {
     
     switch (expr.*) {
         .literal => |lit| { return lit.value; },
