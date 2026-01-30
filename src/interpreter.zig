@@ -8,9 +8,19 @@ const Scanner = @import("scanner.zig");
 
 const Parser = @import("parser.zig");
 
+const Environment = @import("environment.zig");
+
 const Stdfile = std.fs.File;
 
 const Self = @This();
+
+const EvalError = error {
+    InvalidType,
+    TypeMismatch,
+    InvalidExpression,
+    DivisionByZero,
+    UndefinedVariable
+};
 
 allocator: std.mem.Allocator,
 
@@ -18,19 +28,14 @@ diagnostics: *Diagnostics,
 
 parser: *Parser,
 
-const EvalError = error {
-    InvalidType,
-    TypeMismatch,
-    InvalidExpression,
-    DivisionByZero,
-};
-
+environment: Environment,
 
 pub fn init(allocator: std.mem.Allocator, diagnostics: *Diagnostics, parser: *Parser) Self {
     return Self {
         .allocator = allocator,
         .diagnostics =  diagnostics,
         .parser = parser,
+        .environment = Environment.init(allocator)
     };
 }
 
@@ -53,6 +58,15 @@ fn evaluate_statement(self: *Self, stmt: *const Ast.Stmt) !Ast.LoxValue {
     switch (stmt.*) {
         .expression => |expr| { 
             return try self.evaluate_expr(&expr.expression);
+        },
+        .variable => |variable| {
+            var val : Ast.LoxValue = .nil;
+
+            if (variable.initializer) |initializer| {
+                val = try self.evaluate_expr(&initializer);
+            }
+        
+            return .nil;
         },
         .print => |print| {
 
@@ -184,6 +198,14 @@ fn evaluate_expr(self: *Self, expr: *const Ast.Expr) !Ast.LoxValue {
         .grouping => |grouping| {
             return self.evaluate_expr(grouping.expression);
         },
+        .variable => |variable| {
+            return self.environment.lookup(variable.name.lexeme) catch {
+                // TODO(jp): Pass the file to diagnostics and change report_error to take anyargs as well.
+                // TODO(jp): Check the error type.
+                self.diagnostics.report("<inline>", variable.name.line, "Undefined variable '{s}'", .{variable.name.lexeme});
+                return EvalError.UndefinedVariable;
+            };
+        }
     }
 
     return error.InvalidExpression;

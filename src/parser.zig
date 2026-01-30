@@ -4,19 +4,14 @@ const Ast = @import("ast.zig");
 const Diagnostics = @import("diagnostics.zig");
 const Scanner = @import("scanner.zig");
 
+const ParseError = @import("errors.zig").ParseError;
+
 const Expr = Ast.Expr;
 const LoxValue = Ast.LoxValue;
 const Program = Ast.Program;
 const Stmt = Ast.Stmt;
 
 const Self = @This();
-
-const ParseError = error {
-    UnexpectedToken,
-    ExpressionExpected,
-    FloatError,
-    OutOfMemory
-};
 
 allocator: std.mem.Allocator,
 
@@ -61,6 +56,68 @@ pub fn parse(self: *Self) !Program {
     return program;
 }
 
+fn make_node(self: *Self, node: anytype) !*Expr {
+    try self.nodes.append(self.allocator, undefined);
+    const p = self.nodes.at(self.nodes.len - 1);
+    p.* = Expr.make(node);
+    return p;
+}
+
+fn declaration(self: *Self) !Stmt {
+    
+    const is_var_decl = self.match(.{ .VAR }) catch |err| {
+        // TODO(jp): We should synchronize only on parse error.
+        self.synchronize();
+        return err;
+    };
+
+    if (is_var_decl) {
+        return self.var_declaration();
+    }
+}
+
+fn var_declaration(self: *Self) !Stmt {
+
+    const name = try self.consume(.IDENTIFIER, "Expected variable name");
+
+    var initializer : ?*Ast.Expr = null;
+
+    if (self.match(.{ .EQUAL })) {
+        initializer = try self.expression();
+    }
+
+    try self.consume(.SEMICOLON, "Expect ';' after variable declaration");
+    return self.make_node(Expr.Variable {
+        .name = name,
+        .initializer = initializer 
+    });
+}
+
+fn synchronize(self: *Self) void {
+
+    self.advance();
+
+    while (!self.at_end()) {
+
+        if (self.previous().?.type == .SEMICOLON) {
+            return;
+        }
+
+        switch (self.peek().?.type) {
+            .CLASS => return,
+            .FUN => return,
+            .VAR => return,
+            .FOR => return,
+            .IF => return,
+            .WHILE => return,
+            .PRINT => return,
+            .RETURN => return,
+        }
+    }
+
+    self.advance();
+}
+
 fn statement(self: *Self) !Stmt {
     if (self.match(.{.PRINT})) {
         return self.print_statement();
@@ -89,13 +146,6 @@ pub fn expression_statement(self: *Self) !Stmt {
 
 fn expression(self: *Self) !*Expr {
     return self.equality();
-}
-
-fn make_node(self: *Self, node: anytype) !*Expr {
-    try self.nodes.append(self.allocator, undefined);
-    const p = self.nodes.at(self.nodes.len - 1);
-    p.* = Expr.make(node);
-    return p;
 }
 
 fn match(self: *Self, comptime args: anytype) bool {
@@ -314,6 +364,15 @@ fn primary(self: *Self) ParseError!*Expr {
 
         return self.make_node(Expr.Literal { 
             .value = value
+        });
+    }
+
+    if (self.match(.{.IDENTIFIER})) {
+
+        const token = self.previous().?;
+
+        return self.make_node(Expr.Variable {
+            .name = token
         });
     }
 

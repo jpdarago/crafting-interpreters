@@ -56,6 +56,12 @@ pub const Expr = union(enum) {
         expression: *Ref
     };
 
+    pub const Variable = struct {
+        const Self = @This();
+
+        name: Scanner.Token,
+    };
+
     pub fn make(value: anytype) Ref {
         const T = @TypeOf(value);
 
@@ -96,6 +102,9 @@ pub const Expr = union(enum) {
                 _ = try writer.write(" ");
                 try bin.right.write(writer);
                 _ = try writer.write(")");
+            },
+            .variable => |variable| {
+                _ = try writer.write(variable.name.lexeme);
             }
         }
     }
@@ -104,6 +113,7 @@ pub const Expr = union(enum) {
     grouping: Grouping,
     literal: Literal,
     unary: Unary,
+    variable: Variable,
 };
 
 pub const Stmt = union(enum) {
@@ -132,13 +142,32 @@ pub const Stmt = union(enum) {
         }
     };
 
+    pub const Var = struct {
+        const Self = @This();
+
+        name: Scanner.Token,
+
+        initializer: ?Expr,
+
+        pub fn write(self: *const Self, writer: *std.io.Writer) !void {
+            _ = try writer.write("(var ");
+            _ = try writer.write(self.name.lexeme);
+            if (self.initializer) |initializer| {
+                try initializer.write(writer);
+            }
+            _ = try writer.write(")");
+        }
+    };
+
     expression: Expression,
     print: Print,
+    variable: Var,
 
     pub fn write(self: *const Ref, writer: *std.io.Writer) !void {
         switch (self.*) {
             .expression => |expr| try expr.write(writer),
             .print => |expr| try expr.write(writer),
+            .variable => |variable| try variable.write(writer)
         }
     }
 };
