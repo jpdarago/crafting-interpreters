@@ -21,6 +21,7 @@ fn test_interpreter(expression: []const u8, expected: Ast.LoxValue) !void {
     defer parser.deinit();
 
     var interpreter = Interpreter.init(gpa, &diagnostics, &parser);
+    defer interpreter.deinit();
 
     const value = try interpreter.evaluate();
 
@@ -43,4 +44,6 @@ test "evaluates expressions" {
     try test_interpreter("1 == 2;", Ast.LoxValue { .boolean = false });
 
     try test_interpreter("1 != 2;", Ast.LoxValue { .boolean = true });
+
+    try test_interpreter("var a = 1; var b = 2; a + b;", Ast.LoxValue { .number = 3 });
 }

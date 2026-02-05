@@ -36,6 +36,7 @@ pub fn run(self: *Self, code: []const u8) !Ast.LoxValue {
     defer parser.deinit();
 
     var interpreter = Interpreter.init(self.allocator, self.diagnostics, &parser);
+    defer interpreter.deinit();
 
     return try interpreter.evaluate();
 }

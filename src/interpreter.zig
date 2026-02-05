@@ -39,6 +39,10 @@ pub fn init(allocator: std.mem.Allocator, diagnostics: *Diagnostics, parser: *Pa
     };
 }
 
+pub fn deinit(self: *Self) void {
+    self.environment.deinit();
+}
+
 pub fn evaluate(self: *Self) !Ast.LoxValue {
     const ast = try self.parser.parse();
 
@@ -57,20 +61,22 @@ fn evaluate_statement(self: *Self, stmt: *const Ast.Stmt) !Ast.LoxValue {
 
     switch (stmt.*) {
         .expression => |expr| { 
-            return try self.evaluate_expr(&expr.expression);
+            return try self.evaluate_expr(expr.expression);
         },
         .variable => |variable| {
             var val : Ast.LoxValue = .nil;
 
             if (variable.initializer) |initializer| {
-                val = try self.evaluate_expr(&initializer);
+                val = try self.evaluate_expr(initializer);
             }
+
+            try self.environment.define(variable.name.lexeme, val);
         
             return .nil;
         },
         .print => |print| {
 
-            var value = try self.evaluate_expr(&print.expression);
+            var value = try self.evaluate_expr(print.expression);
 
             var buffer : [1024]u8 = undefined;
 

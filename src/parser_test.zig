@@ -42,3 +42,15 @@ test "parses expressions" {
 
     try test_parser("(1 + 4) + (2 * 3);", "(+ (group (+ 1 4)) (group (* 2 3)))");
 }
+
+test "parses statements" {
+
+    try test_parser("print 1 + 2;", "(print (+ 1 2))");
+}
+
+test "parses variables" {
+
+    try test_parser("var x = 1;", "(define x 1)");
+
+    try test_parser("var x = 2 + 3;", "(define x (+ 2 3))");
+}

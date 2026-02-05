@@ -123,7 +123,7 @@ pub const Stmt = union(enum) {
     pub const Expression = struct {
         const Self = @This();
 
-        expression: Expr,
+        expression: *Expr,
 
         pub fn write(self: *const Self, writer: *std.io.Writer) !void {
             try self.expression.write(writer);
@@ -133,7 +133,7 @@ pub const Stmt = union(enum) {
     pub const Print = struct {
         const Self = @This();
 
-        expression: Expr,
+        expression: *Expr,
 
         pub fn write(self: *const Self, writer: *std.io.Writer) !void {
             _ = try writer.write("(print ");
@@ -147,11 +147,12 @@ pub const Stmt = union(enum) {
 
         name: Scanner.Token,
 
-        initializer: ?Expr,
+        initializer: ?*Expr,
 
         pub fn write(self: *const Self, writer: *std.io.Writer) !void {
-            _ = try writer.write("(var ");
+            _ = try writer.write("(define ");
             _ = try writer.write(self.name.lexeme);
+            _ = try writer.write(" ");
             if (self.initializer) |initializer| {
                 try initializer.write(writer);
             }

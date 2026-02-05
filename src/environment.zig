@@ -25,8 +25,8 @@ pub fn deinit(self: *Self) void {
     self.values.deinit();
 }
 
-pub fn define(self: *Self, name: []const u8, value: Ast.LoxValue) void {
-    self.values.put(name, value);
+pub fn define(self: *Self, name: []const u8, value: Ast.LoxValue) !void {
+    return self.values.put(name, value);
 }
 
 pub fn lookup(self: *Self, name: []const u8) !Ast.LoxValue {

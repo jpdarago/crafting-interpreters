@@ -50,7 +50,8 @@ pub fn parse(self: *Self) !Program {
     var program = Program.init(self.allocator);
 
     while (!self.at_end()) {
-        try program.statements.append(self.allocator, try self.statement());
+        const decl = try self.declaration();
+        try program.statements.append(self.allocator, decl);
     }
 
     return program;
@@ -65,15 +66,17 @@ fn make_node(self: *Self, node: anytype) !*Expr {
 
 fn declaration(self: *Self) !Stmt {
     
-    const is_var_decl = self.match(.{ .VAR }) catch |err| {
-        // TODO(jp): We should synchronize only on parse error.
-        self.synchronize();
-        return err;
-    };
+    if (self.match(.{ .VAR })) {
 
-    if (is_var_decl) {
         return self.var_declaration();
     }
+
+    const stmt = self.statement() catch {
+        self.synchronize();
+        return ParseError.ExpressionExpected;
+    };
+
+    return stmt;
 }
 
 fn var_declaration(self: *Self) !Stmt {
@@ -86,16 +89,19 @@ fn var_declaration(self: *Self) !Stmt {
         initializer = try self.expression();
     }
 
-    try self.consume(.SEMICOLON, "Expect ';' after variable declaration");
-    return self.make_node(Expr.Variable {
-        .name = name,
-        .initializer = initializer 
-    });
+    _ = try self.consume(.SEMICOLON, "Expect ';' after variable declaration");
+
+    return Stmt { 
+        .variable = Stmt.Var {
+            .name = name,
+            .initializer = initializer 
+        }
+    };
 }
 
 fn synchronize(self: *Self) void {
 
-    self.advance();
+    _ = self.advance();
 
     while (!self.at_end()) {
 
@@ -112,14 +118,17 @@ fn synchronize(self: *Self) void {
             .WHILE => return,
             .PRINT => return,
             .RETURN => return,
+            else => {},
         }
     }
 
-    self.advance();
+    _ = self.advance();
 }
 
 fn statement(self: *Self) !Stmt {
+
     if (self.match(.{.PRINT})) {
+
         return self.print_statement();
     }
 
@@ -130,21 +139,22 @@ fn print_statement(self: *Self) !Stmt {
 
     const expr = try self.expression();
 
-    try self.consume(.SEMICOLON, "Expected ';' after value");
+    _ = try self.consume(.SEMICOLON, "Expected ';' after value");
 
-    return Stmt { .print = Stmt.Print { .expression = expr.* } };
+    return Stmt { .print = Stmt.Print { .expression = expr } };
 }
 
 pub fn expression_statement(self: *Self) !Stmt {
 
     const expr = try self.expression();
 
-    try self.consume(.SEMICOLON, "Expected ';' after value");
+    _ = try self.consume(.SEMICOLON, "Expected ';' after value");
 
-    return Stmt { .expression = Stmt.Expression { .expression = expr.* } };
+    return Stmt { .expression = Stmt.Expression { .expression = expr } };
 }
 
 fn expression(self: *Self) !*Expr {
+
     return self.equality();
 }
 
@@ -177,7 +187,7 @@ fn peek(self: *Self) ?Scanner.Token {
     return self.tokens[self.current];
 }
 
-fn consume(self: *Self, token: Scanner.TokenType, message: []const u8) ParseError!void {
+fn consume(self: *Self, token: Scanner.TokenType, message: []const u8) ParseError!Scanner.Token {
 
     if (self.at_end()) {
 
@@ -188,9 +198,7 @@ fn consume(self: *Self, token: Scanner.TokenType, message: []const u8) ParseErro
 
     if (self.check(token)) {
 
-        _ = self.advance();
-
-        return;
+        return self.advance().?;
     }
 
     const current = self.peek().?;
@@ -380,20 +388,21 @@ fn primary(self: *Self) ParseError!*Expr {
 
         const expr = try self.expression();
 
-        try self.consume(.RIGHT_PAREN, "Expect ')' after expression.");
+        _ = try self.consume(.RIGHT_PAREN, "Expect ')' after expression.");
 
         return self.make_node(Expr.Grouping {
             .expression = expr
         });
     }
 
-    if (self.at_end()) {
+    if (self.previous()) |prev| {
 
-        self.diagnostics.report("<eof>", 0, "Expected expression", .{});
+        self.diagnostics.report_error(prev.line, "Expected expression");
 
     } else {
 
-        self.diagnostics.report_error(self.previous().?.line, "Expected expression");
+        self.diagnostics.report("<eof>", 0, "Expected expression", .{});
+
     }
 
     return ParseError.ExpressionExpected;
