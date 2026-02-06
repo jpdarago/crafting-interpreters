@@ -155,7 +155,32 @@ pub fn expression_statement(self: *Self) !Stmt {
 
 fn expression(self: *Self) !*Expr {
 
-    return self.equality();
+    return self.assignment();
+}
+
+fn assignment(self: *Self) !*Expr {
+
+    const expr = try self.equality();
+
+    if (self.match(.{.EQUAL})) {
+
+        const equals = self.previous().?;
+        const value = try self.assignment();
+
+        switch (expr.*) {
+            .variable => |variable| {
+                return self.make_node(Expr.Assign {
+                    .name = variable.name,
+                    .value = value
+                });
+            },
+            else => {},
+        }
+
+        self.diagnostics.report_error(equals.line, "Invalid assignment target.");
+    }
+
+    return expr;
 }
 
 fn match(self: *Self, comptime args: anytype) bool {

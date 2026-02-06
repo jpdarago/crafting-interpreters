@@ -61,6 +61,14 @@ pub const Expr = union(enum) {
 
         name: Scanner.Token,
     };
+    
+    pub const Assign = struct {
+        const Self = @This();
+
+        name: Scanner.Token,
+        
+        value: *Ref
+    };
 
     pub fn make(value: anytype) Ref {
         const T = @TypeOf(value);
@@ -105,6 +113,13 @@ pub const Expr = union(enum) {
             },
             .variable => |variable| {
                 _ = try writer.write(variable.name.lexeme);
+            },
+            .assign => |assign| {
+                _ = try writer.write("(set ");
+                _ = try writer.write(assign.name.lexeme);
+                _ = try writer.write(" ");
+                try assign.value.write(writer);
+                _ = try writer.write(")");
             }
         }
     }
@@ -114,6 +129,7 @@ pub const Expr = union(enum) {
     literal: Literal,
     unary: Unary,
     variable: Variable,
+    assign: Assign
 };
 
 pub const Stmt = union(enum) {

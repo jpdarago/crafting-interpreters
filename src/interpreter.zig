@@ -211,6 +211,11 @@ fn evaluate_expr(self: *Self, expr: *const Ast.Expr) !Ast.LoxValue {
                 self.diagnostics.report("<inline>", variable.name.line, "Undefined variable '{s}'", .{variable.name.lexeme});
                 return EvalError.UndefinedVariable;
             };
+        },
+        .assign => |assign| {
+            const value = try self.evaluate_expr(assign.value);
+            try self.environment.define(assign.name.lexeme, value);
+            return value;
         }
     }
 
