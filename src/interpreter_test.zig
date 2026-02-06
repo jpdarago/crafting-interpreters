@@ -46,4 +46,6 @@ test "evaluates expressions" {
     try test_interpreter("1 != 2;", Ast.LoxValue { .boolean = true });
 
     try test_interpreter("var a = 1; var b = 2; a + b;", Ast.LoxValue { .number = 3 });
+
+    try test_interpreter("var a = 1; var b = 2; a = 3; a + b;", Ast.LoxValue { .number = 5 });
 }

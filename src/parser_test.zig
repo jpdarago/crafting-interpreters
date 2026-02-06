@@ -54,3 +54,8 @@ test "parses variables" {
 
     try test_parser("var x = 2 + 3;", "(define x (+ 2 3))");
 }
+
+test "parses assignments" {
+
+    try test_parser("var x = 1; x = 2;", "(define x 1)\n(set x 2)");
+}
