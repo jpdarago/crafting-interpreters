@@ -1,0 +1,13 @@
+// Compute circle area and circumference.
+var pi = 3.14159265;
+var radius = 5;
+
+var area = pi * radius * radius;
+var circumference = 2 * pi * radius;
+
+print "radius:";
+print radius;
+print "area:";
+print area;
+print "circumference:";
+print circumference;

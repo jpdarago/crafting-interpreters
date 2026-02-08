@@ -1,0 +1,12 @@
+// Convert temperatures from Celsius to Fahrenheit.
+var celsius = 0;
+var fahrenheit = celsius * 9 / 5 + 32;
+print fahrenheit;
+
+celsius = 100;
+fahrenheit = celsius * 9 / 5 + 32;
+print fahrenheit;
+
+celsius = 37;
+fahrenheit = celsius * 9 / 5 + 32;
+print fahrenheit;

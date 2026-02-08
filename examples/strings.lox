@@ -1,0 +1,9 @@
+// String variables and printing.
+var greeting = "Hello, world!";
+print greeting;
+
+var lang = "Lox";
+print lang;
+
+var message = "crafting interpreters";
+print message;

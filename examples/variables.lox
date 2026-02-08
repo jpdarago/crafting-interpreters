@@ -1,0 +1,13 @@
+// Variable declarations and assignments.
+var x = 10;
+var y = 20;
+print x + y;
+
+x = x + 5;
+print x;
+
+var temp = x;
+x = y;
+y = temp;
+print x;
+print y;
