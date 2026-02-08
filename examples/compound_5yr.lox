@@ -1,0 +1,27 @@
+// Simulate compound interest over 5 years.
+// principal * (1 + rate) each year, unrolled without loops.
+var principal = 1000;
+var rate = 0.05;
+
+print "year 0:";
+print principal;
+
+principal = principal * (1 + rate);
+print "year 1:";
+print principal;
+
+principal = principal * (1 + rate);
+print "year 2:";
+print principal;
+
+principal = principal * (1 + rate);
+print "year 3:";
+print principal;
+
+principal = principal * (1 + rate);
+print "year 4:";
+print principal;
+
+principal = principal * (1 + rate);
+print "year 5:";
+print principal;

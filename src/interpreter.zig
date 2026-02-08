@@ -52,11 +52,13 @@ pub fn deinit(self: *Self) void {
 }
 
 pub fn evaluate(self: *Self) !Ast.LoxValue {
-    const ast = try self.parser.parse();
+
+    var program = try self.parser.parse();
+    defer program.deinit();
 
     var result : Ast.LoxValue = .nil;
 
-    var it = ast.statements.constIterator(0);
+    var it = program.statements.constIterator(0);
 
     while (it.next()) |stmt| {
         result = try self.evaluate_statement(stmt);        
