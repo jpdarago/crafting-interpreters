@@ -30,17 +30,25 @@ parser: *Parser,
 
 environment: Environment,
 
+string_pool: std.heap.ArenaAllocator,
+
 pub fn init(allocator: std.mem.Allocator, diagnostics: *Diagnostics, parser: *Parser) Self {
+
+    const environment = Environment.init(allocator);
+    const pool = std.heap.ArenaAllocator.init(allocator);
+
     return Self {
         .allocator = allocator,
         .diagnostics =  diagnostics,
         .parser = parser,
-        .environment = Environment.init(allocator)
+        .environment = environment,
+        .string_pool = pool
     };
 }
 
 pub fn deinit(self: *Self) void {
     self.environment.deinit();
+    self.string_pool.deinit();
 }
 
 pub fn evaluate(self: *Self) !Ast.LoxValue {
@@ -285,7 +293,7 @@ fn are_equal(self: *Self, token: Scanner.Token, lhs: Ast.LoxValue, rhs: Ast.LoxV
 // TODO(jp): This needs a garbage collector of some sort.
 fn concat_strings(self: *Self, lhs: []const u8, rhs: []const u8) ![]u8 {
 
-    const result = try self.allocator.alloc(u8, lhs.len + rhs.len);
+    const result = try self.string_pool.allocator().alloc(u8, lhs.len + rhs.len);
 
     std.mem.copyForwards(u8, result[0..lhs.len], lhs);
     std.mem.copyForwards(u8, result[lhs.len..], rhs);
