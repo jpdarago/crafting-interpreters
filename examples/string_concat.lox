@@ -1,4 +1,0 @@
-// String concatenation (known memory leak in interpreter).
-var greeting = "Hello";
-var name = "Lox";
-print greeting + ", " + name + "!";

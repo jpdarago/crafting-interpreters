@@ -1,0 +1,19 @@
+// Solve a quadratic equation ax^2 + bx + c = 0 using the discriminant.
+// For 2x^2 + 7x + 3 = 0, roots are -0.5 and -3.
+var a = 2;
+var b = 7;
+var c = 3;
+
+var discriminant = b * b - 4 * a * c;
+print "discriminant:";
+print discriminant;
+
+// Since we don't have sqrt yet, just check if it's a perfect square.
+// discriminant = 25, sqrt(25) = 5.
+var sqrt_d = 5;
+var root1 = (-b + sqrt_d) / (2 * a);
+var root2 = (-b - sqrt_d) / (2 * a);
+print "root1:";
+print root1;
+print "root2:";
+print root2;

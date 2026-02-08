@@ -1,9 +1,8 @@
-// String variables and printing.
-var greeting = "Hello, world!";
-print greeting;
+// String literals and concatenation.
+var greeting = "Hello";
+var name = "Lox";
+print greeting + ", " + name + "!";
 
-var lang = "Lox";
-print lang;
-
-var message = "crafting interpreters";
-print message;
+var lang = "crafting";
+var topic = "interpreters";
+print lang + " " + topic;

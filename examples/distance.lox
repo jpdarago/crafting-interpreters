@@ -1,0 +1,15 @@
+// Compute squared Euclidean distance between two points.
+// (We don't have sqrt, so we compute the squared distance.)
+var x1 = 1;
+var y1 = 2;
+var x2 = 4;
+var y2 = 6;
+
+var dx = x2 - x1;
+var dy = y2 - y1;
+var dist_squared = dx * dx + dy * dy;
+
+print "point 1: (" + "1, 2)";
+print "point 2: (" + "4, 6)";
+print "distance squared:";
+print dist_squared;

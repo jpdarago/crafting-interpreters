@@ -1,0 +1,13 @@
+// Swap two variables using a temporary.
+var a = "first";
+var b = "second";
+print "before:";
+print a;
+print b;
+
+var temp = a;
+a = b;
+b = temp;
+print "after:";
+print a;
+print b;

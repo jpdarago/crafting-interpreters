@@ -1,0 +1,12 @@
+// Calculate Body Mass Index.
+// BMI = weight(kg) / height(m)^2
+var weight = 70;
+var height = 1.75;
+
+var bmi = weight / (height * height);
+print "weight (kg):";
+print weight;
+print "height (m):";
+print height;
+print "BMI:";
+print bmi;
