@@ -176,15 +176,37 @@ pub const Stmt = union(enum) {
         }
     };
 
+    pub const Block = struct {
+
+        statements: std.SegmentedList(*Ref, 4),
+
+        allocator: std.mem.Allocator,
+    };
+
     expression: Expression,
     print: Print,
     variable: Var,
+    block: Block,
+
+    pub fn deinit(self: *Ref) !void {
+
+        switch (self.*) {
+            .block => |block| { block.statements.deinit(block.allocator); },
+            else => {},
+        }
+
+    }
 
     pub fn write(self: *const Ref, writer: *std.io.Writer) !void {
         switch (self.*) {
             .expression => |expr| try expr.write(writer),
             .print => |expr| try expr.write(writer),
-            .variable => |variable| try variable.write(writer)
+            .variable => |variable| try variable.write(writer),
+            .block => |block| {
+                for (block.statements) |stmt| {
+                    try stmt.write(writer);
+                }
+            },
         }
     }
 };
@@ -208,6 +230,9 @@ pub const Program = struct {
     }
 
     pub fn deinit(self: *Self) void {
+        for (self.statements) |stmt| {
+            stmt.deinit();
+        }
         self.statements.deinit(self.allocator);
     }
 

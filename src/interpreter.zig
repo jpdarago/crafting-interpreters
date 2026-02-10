@@ -34,7 +34,7 @@ string_pool: std.heap.ArenaAllocator,
 
 pub fn init(allocator: std.mem.Allocator, diagnostics: *Diagnostics, parser: *Parser) Self {
 
-    const environment = Environment.init(allocator);
+    const environment = Environment.init(allocator, null);
     const pool = std.heap.ArenaAllocator.init(allocator);
 
     return Self {
@@ -61,32 +61,32 @@ pub fn evaluate(self: *Self) !Ast.LoxValue {
     var it = program.statements.constIterator(0);
 
     while (it.next()) |stmt| {
-        result = try self.evaluate_statement(stmt);        
+        result = try self.evaluate_statement(stmt, &self.environment);        
     }
 
     return result;
 }
 
-fn evaluate_statement(self: *Self, stmt: *const Ast.Stmt) !Ast.LoxValue {
+fn evaluate_statement(self: *Self, stmt: *const Ast.Stmt, env: *Environment) !Ast.LoxValue {
 
     switch (stmt.*) {
         .expression => |expr| { 
-            return try self.evaluate_expr(expr.expression);
+            return try self.evaluate_expr(expr.expression, env);
         },
         .variable => |variable| {
             var val : Ast.LoxValue = .nil;
 
             if (variable.initializer) |initializer| {
-                val = try self.evaluate_expr(initializer);
+                val = try self.evaluate_expr(initializer, env);
             }
 
-            try self.environment.define(variable.name.lexeme, val);
+            try env.define(variable.name.lexeme, val);
         
             return .nil;
         },
         .print => |print| {
 
-            var value = try self.evaluate_expr(print.expression);
+            var value = try self.evaluate_expr(print.expression, env);
 
             var buffer : [1024]u8 = undefined;
 
@@ -98,17 +98,33 @@ fn evaluate_statement(self: *Self, stmt: *const Ast.Stmt) !Ast.LoxValue {
             try stdout.interface.flush();
 
             return .nil;
-        }
+        },
+        .block => |block| {
+
+            try self.execute_block(block, env); 
+
+            return .nil;
+        },
     }
 }
 
-fn evaluate_expr(self: *Self, expr: *const Ast.Expr) !Ast.LoxValue {
+fn evaluate_block(self: *Self, block: Ast.Stmt.Block, env: *Environment) !void {
+
+    var new_env = Environment.init(self.allocator, env);
+    defer new_env.deinit();
+    
+    for (block.statements) |*stmt| {
+        try self.evaluate_statement(stmt);
+    }
+}
+
+fn evaluate_expr(self: *Self, expr: *const Ast.Expr, env: *Environment) !Ast.LoxValue {
     
     switch (expr.*) {
         .literal => |lit| { return lit.value; },
         .binary => |bin| {
-            const lhs = try self.evaluate_expr(bin.left);
-            const rhs = try self.evaluate_expr(bin.right);
+            const lhs = try self.evaluate_expr(bin.left, env);
+            const rhs = try self.evaluate_expr(bin.right, env);
 
             try self.check_same_tag(bin.operator, lhs, rhs);
             try self.check_tag(bin.operator, lhs, .{ .number, .string });
@@ -194,7 +210,7 @@ fn evaluate_expr(self: *Self, expr: *const Ast.Expr) !Ast.LoxValue {
             }
         },
         .unary => |un| {
-            const val = try self.evaluate_expr(un.expression);
+            const val = try self.evaluate_expr(un.expression, env);
 
             if (un.operator.type == .MINUS) {
                 return Ast.LoxValue {
@@ -212,10 +228,10 @@ fn evaluate_expr(self: *Self, expr: *const Ast.Expr) !Ast.LoxValue {
             }
         },
         .grouping => |grouping| {
-            return self.evaluate_expr(grouping.expression);
+            return self.evaluate_expr(grouping.expression, env);
         },
         .variable => |variable| {
-            return self.environment.lookup(variable.name.lexeme) catch {
+            return env.lookup(variable.name.lexeme) catch {
                 // TODO(jp): Pass the file to diagnostics and change report_error to take anyargs as well.
                 // TODO(jp): Check the error type.
                 self.diagnostics.report("<inline>", variable.name.line, "Undefined variable '{s}'", .{variable.name.lexeme});
@@ -223,8 +239,8 @@ fn evaluate_expr(self: *Self, expr: *const Ast.Expr) !Ast.LoxValue {
             };
         },
         .assign => |assign| {
-            const value = try self.evaluate_expr(assign.value);
-            try self.environment.define(assign.name.lexeme, value);
+            const value = try self.evaluate_expr(assign.value, env);
+            try env.define(assign.name.lexeme, value);
             return value;
         }
     }

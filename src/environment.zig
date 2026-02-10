@@ -12,11 +12,14 @@ stores: std.heap.ArenaAllocator,
 
 allocator: std.mem.Allocator,
 
-pub fn init(allocator: std.mem.Allocator) Self {
+enclosing: ?*Self,
+
+pub fn init(allocator: std.mem.Allocator, env: ?*Self) Self {
     return Self {
         .allocator = allocator,
         .stores = std.heap.ArenaAllocator.init(allocator),
-        .values = std.StringHashMap(Ast.LoxValue).init(allocator)
+        .values = std.StringHashMap(Ast.LoxValue).init(allocator),
+        .enclosing = env,
     };
 }
 
@@ -26,12 +29,18 @@ pub fn deinit(self: *Self) void {
 }
 
 pub fn define(self: *Self, name: []const u8, value: Ast.LoxValue) !void {
-    return self.values.put(name, value);
+    try self.values.put(name, value);
+    if (self.enclosing) |enclosing| {
+        try enclosing.define(name, value);
+    }
+    return Errors.EvalError.UndefinedVariable;
 }
 
 pub fn lookup(self: *Self, name: []const u8) !Ast.LoxValue {
     if (self.values.get(name)) |val| {
         return val;
+    } else if (self.enclosing) |enclosing| {
+        return enclosing.lookup(name);
     } else {
         return Errors.EvalError.UndefinedVariable;
     }

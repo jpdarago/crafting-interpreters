@@ -132,7 +132,31 @@ fn statement(self: *Self) !Stmt {
         return self.print_statement();
     }
 
+    if (self.match(.{.LEFT_BRACE })) {
+        
+        return self.block();    
+    }
+
     return self.expression_statement();
+}
+
+fn block(self: *Self) !Stmt {
+
+    var result = Stmt.Block {
+        .allocator = self.allocator,
+        .statements = std.SegmentedList(*Stmt, 4) {},
+    };
+
+    while (!self.check(.RIGHT_BRACE) and !self.at_end()) {
+
+        const stmt = try self.declaration();
+
+        try result.statements.append(self.allocator, stmt);
+    }
+
+    self.consume(.RIGHT_BRACE, "Expected '}' after block.");
+
+    return Stmt { .block = result };
 }
 
 fn print_statement(self: *Self) !Stmt {
