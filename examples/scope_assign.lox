@@ -1,0 +1,12 @@
+// Assigning to an outer variable from an inner block.
+var volume = 100;
+print "before:";
+print volume;
+{
+  // Assignment modifies the outer variable, not a new one.
+  volume = volume / 2;
+  print "inside block:";
+  print volume;
+}
+print "after:";
+print volume;

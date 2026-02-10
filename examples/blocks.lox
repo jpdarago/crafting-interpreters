@@ -1,0 +1,7 @@
+// Basic blocks and local scope.
+var x = "outer";
+{
+  var x = "inner";
+  print x;
+}
+print x;
