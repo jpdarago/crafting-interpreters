@@ -4,6 +4,8 @@ const Ast = @import("ast.zig");
 
 const Errors = @import("errors.zig");
 
+const EvalError = Errors.EvalError;
+
 const Self = @This();
 
 values: std.StringHashMap(Ast.LoxValue),
@@ -28,12 +30,14 @@ pub fn deinit(self: *Self) void {
     self.values.deinit();
 }
 
-pub fn define(self: *Self, name: []const u8, value: Ast.LoxValue) !void {
-    try self.values.put(name, value);
+pub fn define(self: *Self, name: []const u8, value: Ast.LoxValue) EvalError!void {
+    self.values.put(name, value) catch {
+        // TODO(jp): Error reporting.
+        return EvalError.InternalFailure;
+    };
     if (self.enclosing) |enclosing| {
         try enclosing.define(name, value);
     }
-    return Errors.EvalError.UndefinedVariable;
 }
 
 pub fn lookup(self: *Self, name: []const u8) !Ast.LoxValue {
@@ -42,6 +46,6 @@ pub fn lookup(self: *Self, name: []const u8) !Ast.LoxValue {
     } else if (self.enclosing) |enclosing| {
         return enclosing.lookup(name);
     } else {
-        return Errors.EvalError.UndefinedVariable;
+        return EvalError.UndefinedVariable;
     }
 }

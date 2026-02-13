@@ -178,9 +178,31 @@ pub const Stmt = union(enum) {
 
     pub const Block = struct {
 
+        const Self = @This();
+
         statements: std.SegmentedList(*Ref, 4),
 
         allocator: std.mem.Allocator,
+
+        pub fn add_statement(self: *Self, stmt: Stmt) !void {
+
+            const copy = try self.allocator.create(Stmt);
+
+            copy.* = stmt;
+
+            try self.statements.append(self.allocator, copy);
+        }
+
+        pub fn deinit(self: *Self) void {
+            var it = self.statements.iterator(0);
+
+            while (it.next()) |stmt| {
+                stmt.*.deinit();
+                self.allocator.destroy(stmt.*);
+            }
+
+            self.statements.deinit(self.allocator); 
+        }
     };
 
     expression: Expression,
@@ -188,10 +210,10 @@ pub const Stmt = union(enum) {
     variable: Var,
     block: Block,
 
-    pub fn deinit(self: *Ref) !void {
+    pub fn deinit(self: *Ref) void {
 
         switch (self.*) {
-            .block => |block| { block.statements.deinit(block.allocator); },
+            .block => |*block| { block.deinit(); },
             else => {},
         }
 
@@ -203,8 +225,11 @@ pub const Stmt = union(enum) {
             .print => |expr| try expr.write(writer),
             .variable => |variable| try variable.write(writer),
             .block => |block| {
-                for (block.statements) |stmt| {
-                    try stmt.write(writer);
+                
+                var it = block.statements.constIterator(0);
+
+                while (it.next()) |stmt| {
+                    try stmt.*.write(writer);
                 }
             },
         }
@@ -230,9 +255,13 @@ pub const Program = struct {
     }
 
     pub fn deinit(self: *Self) void {
-        for (self.statements) |stmt| {
+
+        var it = self.statements.iterator(0);
+
+        while (it.next()) |stmt| {
             stmt.deinit();
         }
+
         self.statements.deinit(self.allocator);
     }
 

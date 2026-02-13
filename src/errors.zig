@@ -10,6 +10,7 @@ pub const EvalError = error {
     TypeMismatch,
     InvalidExpression,
     DivisionByZero,
-    UndefinedVariable
+    UndefinedVariable,
+    InternalFailure
 };
 

@@ -10,17 +10,13 @@ const Parser = @import("parser.zig");
 
 const Environment = @import("environment.zig");
 
+const Errors = @import("errors.zig");
+
+const EvalError = Errors.EvalError;
+
 const Stdfile = std.fs.File;
 
 const Self = @This();
-
-const EvalError = error {
-    InvalidType,
-    TypeMismatch,
-    InvalidExpression,
-    DivisionByZero,
-    UndefinedVariable
-};
 
 allocator: std.mem.Allocator,
 
@@ -67,7 +63,7 @@ pub fn evaluate(self: *Self) !Ast.LoxValue {
     return result;
 }
 
-fn evaluate_statement(self: *Self, stmt: *const Ast.Stmt, env: *Environment) !Ast.LoxValue {
+fn evaluate_statement(self: *Self, stmt: *const Ast.Stmt, env: *Environment) EvalError!Ast.LoxValue {
 
     switch (stmt.*) {
         .expression => |expr| { 
@@ -80,7 +76,12 @@ fn evaluate_statement(self: *Self, stmt: *const Ast.Stmt, env: *Environment) !As
                 val = try self.evaluate_expr(initializer, env);
             }
 
-            try env.define(variable.name.lexeme, val);
+            env.define(variable.name.lexeme, val) catch {
+
+                self.diagnostics.report("<inline>", variable.name.line, "Internal error: Failed to set variable {s}", .{variable.name.lexeme});
+                
+                return EvalError.InternalFailure;
+            };
         
             return .nil;
         },
@@ -92,33 +93,54 @@ fn evaluate_statement(self: *Self, stmt: *const Ast.Stmt, env: *Environment) !As
 
             var stdout = Stdfile.stdout().writer(&buffer);
 
-            try value.write(&stdout.interface);
-            _ = try stdout.interface.write("\n");
+            value.write(&stdout.interface) catch {
 
-            try stdout.interface.flush();
+                // TODO(jp): Better error handling.
+                self.diagnostics.report_error(0, "Internal error: Failed to write expression");
+                
+                return EvalError.InternalFailure;
+            };
+
+            _ = stdout.interface.write("\n") catch {
+
+                // TODO(jp): Better error handling.
+                self.diagnostics.report_error(0, "Internal error: Failed to write expression");
+                
+                return error.InternalFailure;
+            };
+
+            stdout.interface.flush() catch {
+
+                // TODO(jp): Better error handling.
+                self.diagnostics.report_error(0, "Internal error: Failed to write expression");
+                
+                return error.InternalFailure;
+            };
 
             return .nil;
         },
         .block => |block| {
 
-            try self.execute_block(block, env); 
+            try self.evaluate_block(block, env); 
 
             return .nil;
         },
     }
 }
 
-fn evaluate_block(self: *Self, block: Ast.Stmt.Block, env: *Environment) !void {
+fn evaluate_block(self: *Self, block: Ast.Stmt.Block, env: *Environment) EvalError!void {
 
     var new_env = Environment.init(self.allocator, env);
     defer new_env.deinit();
     
-    for (block.statements) |*stmt| {
-        try self.evaluate_statement(stmt);
+    var it = block.statements.constIterator(0);
+
+    while (it.next()) |stmt| {
+        _ = try self.evaluate_statement(stmt.*, env);
     }
 }
 
-fn evaluate_expr(self: *Self, expr: *const Ast.Expr, env: *Environment) !Ast.LoxValue {
+fn evaluate_expr(self: *Self, expr: *const Ast.Expr, env: *Environment) EvalError!Ast.LoxValue {
     
     switch (expr.*) {
         .literal => |lit| { return lit.value; },
@@ -240,7 +262,10 @@ fn evaluate_expr(self: *Self, expr: *const Ast.Expr, env: *Environment) !Ast.Lox
         },
         .assign => |assign| {
             const value = try self.evaluate_expr(assign.value, env);
-            try env.define(assign.name.lexeme, value);
+            env.define(assign.name.lexeme, value) catch |err| {
+                self.diagnostics.report("<inline>", assign.name.line, "Failed to define variable {d}", .{assign.name.line});
+                return err;
+            };
             return value;
         }
     }
@@ -248,7 +273,7 @@ fn evaluate_expr(self: *Self, expr: *const Ast.Expr, env: *Environment) !Ast.Lox
     return error.InvalidExpression;
 }
 
-fn check_tag(self: *Self, token: Scanner.Token, val: Ast.LoxValue, comptime tags: anytype) !void {
+fn check_tag(self: *Self, token: Scanner.Token, val: Ast.LoxValue, comptime tags: anytype) EvalError!void {
 
     const tag = std.meta.activeTag(val);
 
@@ -263,14 +288,14 @@ fn check_tag(self: *Self, token: Scanner.Token, val: Ast.LoxValue, comptime tags
     return error.InvalidExpression;
 }
 
-fn check_number(self: *Self, token: Scanner.Token, lhs: Ast.LoxValue) !f64 {
+fn check_number(self: *Self, token: Scanner.Token, lhs: Ast.LoxValue) EvalError!f64 {
 
     try self.check_tag(token, lhs, .{ .number });
 
     return lhs.number;
 }
 
-fn check_bool(lhs: *Ast.LoxValue) !f64 {
+fn check_bool(lhs: *Ast.LoxValue) EvalError!f64 {
 
     try check_tag(lhs, .{ .number });
 
@@ -289,14 +314,14 @@ fn is_truthy(val: Ast.LoxValue) bool {
     };
 }
 
-fn check_same_tag(self: *Self, token: Scanner.Token, lhs: Ast.LoxValue, rhs: Ast.LoxValue) !void {
+fn check_same_tag(self: *Self, token: Scanner.Token, lhs: Ast.LoxValue, rhs: Ast.LoxValue) EvalError!void {
     if (@intFromEnum(lhs) != @intFromEnum(rhs)) {
         self.diagnostics.report_error(token.line, "Mismatched types");
         return error.TypeMismatch;
     }
 }
 
-fn are_equal(self: *Self, token: Scanner.Token, lhs: Ast.LoxValue, rhs: Ast.LoxValue) !bool {
+fn are_equal(self: *Self, token: Scanner.Token, lhs: Ast.LoxValue, rhs: Ast.LoxValue) EvalError!bool {
 
     try self.check_same_tag(token, lhs, rhs);
 
@@ -309,9 +334,12 @@ fn are_equal(self: *Self, token: Scanner.Token, lhs: Ast.LoxValue, rhs: Ast.LoxV
 }
 
 // TODO(jp): This needs a garbage collector of some sort.
-fn concat_strings(self: *Self, lhs: []const u8, rhs: []const u8) ![]u8 {
+fn concat_strings(self: *Self, lhs: []const u8, rhs: []const u8) EvalError![]u8 {
 
-    const result = try self.string_pool.allocator().alloc(u8, lhs.len + rhs.len);
+    const result = self.string_pool.allocator().alloc(u8, lhs.len + rhs.len) catch {
+        std.log.err("Failed to get memory", .{});
+        return error.InternalFailure;
+    };
 
     std.mem.copyForwards(u8, result[0..lhs.len], lhs);
     std.mem.copyForwards(u8, result[lhs.len..], rhs);

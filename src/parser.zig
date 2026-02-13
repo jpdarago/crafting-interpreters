@@ -140,7 +140,7 @@ fn statement(self: *Self) !Stmt {
     return self.expression_statement();
 }
 
-fn block(self: *Self) !Stmt {
+fn block(self: *Self) ParseError!Stmt {
 
     var result = Stmt.Block {
         .allocator = self.allocator,
@@ -151,15 +151,19 @@ fn block(self: *Self) !Stmt {
 
         const stmt = try self.declaration();
 
-        try result.statements.append(self.allocator, stmt);
+        result.add_statement(stmt) catch {
+
+            // TODO(jp): Error handling
+            return ParseError.OutOfMemory;
+        };
     }
 
-    self.consume(.RIGHT_BRACE, "Expected '}' after block.");
+    _ = try self.consume(.RIGHT_BRACE, "Expected '}' after block.");
 
     return Stmt { .block = result };
 }
 
-fn print_statement(self: *Self) !Stmt {
+fn print_statement(self: *Self) ParseError!Stmt {
 
     const expr = try self.expression();
 
@@ -168,7 +172,7 @@ fn print_statement(self: *Self) !Stmt {
     return Stmt { .print = Stmt.Print { .expression = expr } };
 }
 
-pub fn expression_statement(self: *Self) !Stmt {
+pub fn expression_statement(self: *Self) ParseError!Stmt {
 
     const expr = try self.expression();
 
@@ -177,12 +181,12 @@ pub fn expression_statement(self: *Self) !Stmt {
     return Stmt { .expression = Stmt.Expression { .expression = expr } };
 }
 
-fn expression(self: *Self) !*Expr {
+fn expression(self: *Self) ParseError!*Expr {
 
     return self.assignment();
 }
 
-fn assignment(self: *Self) !*Expr {
+fn assignment(self: *Self) ParseError!*Expr {
 
     const expr = try self.equality();
 
