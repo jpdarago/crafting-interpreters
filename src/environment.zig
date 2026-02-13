@@ -35,9 +35,18 @@ pub fn define(self: *Self, name: []const u8, value: Ast.LoxValue) EvalError!void
         // TODO(jp): Error reporting.
         return EvalError.InternalFailure;
     };
-    if (self.enclosing) |enclosing| {
-        try enclosing.define(name, value);
+}
+
+pub fn assign(self: *Self, name: []const u8, value: Ast.LoxValue) EvalError!void {
+    if (self.values.getEntry(name)) |entry| {
+        entry.value_ptr.* = value;
+        return;
     }
+    if (self.enclosing) |enclosing| {
+        try enclosing.assign(name, value);
+        return;
+    }
+    return EvalError.UndefinedVariable;
 }
 
 pub fn lookup(self: *Self, name: []const u8) !Ast.LoxValue {

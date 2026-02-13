@@ -136,7 +136,7 @@ fn evaluate_block(self: *Self, block: Ast.Stmt.Block, env: *Environment) EvalErr
     var it = block.statements.constIterator(0);
 
     while (it.next()) |stmt| {
-        _ = try self.evaluate_statement(stmt.*, env);
+        _ = try self.evaluate_statement(stmt.*, &new_env);
     }
 }
 
@@ -262,8 +262,8 @@ fn evaluate_expr(self: *Self, expr: *const Ast.Expr, env: *Environment) EvalErro
         },
         .assign => |assign| {
             const value = try self.evaluate_expr(assign.value, env);
-            env.define(assign.name.lexeme, value) catch |err| {
-                self.diagnostics.report("<inline>", assign.name.line, "Failed to define variable {d}", .{assign.name.line});
+            env.assign(assign.name.lexeme, value) catch |err| {
+                self.diagnostics.report("<inline>", assign.name.line, "Undefined variable {s}", .{assign.name.lexeme});
                 return err;
             };
             return value;
