@@ -22,6 +22,10 @@ pub const LoxValue = union(enum) {
 
 };
 
+const WriteError = error {
+    WriteFailed
+};
+
 pub const Expr = union(enum) {
 
     const Ref = @This();
@@ -84,7 +88,7 @@ pub const Expr = union(enum) {
         @compileError("Expr.make: type " ++ @typeName(T) ++ " is not a valid Expr variant");
     }
 
-    pub fn write(self: *const Ref, writer: *std.io.Writer) !void {
+    pub fn write(self: *const Ref, writer: *std.io.Writer) WriteError!void {
 
         switch (self.*) {
             .literal => |lit| {
@@ -141,7 +145,7 @@ pub const Stmt = union(enum) {
 
         expression: *Expr,
 
-        pub fn write(self: *const Self, writer: *std.io.Writer) !void {
+        pub fn write(self: *const Self, writer: *std.io.Writer) WriteError!void {
             try self.expression.write(writer);
         }
     };
@@ -151,7 +155,7 @@ pub const Stmt = union(enum) {
 
         expression: *Expr,
 
-        pub fn write(self: *const Self, writer: *std.io.Writer) !void {
+        pub fn write(self: *const Self, writer: *std.io.Writer) WriteError!void {
             _ = try writer.write("(print ");
             try self.expression.write(writer);
             _ = try writer.write(")");
@@ -165,12 +169,37 @@ pub const Stmt = union(enum) {
 
         initializer: ?*Expr,
 
-        pub fn write(self: *const Self, writer: *std.io.Writer) !void {
+        pub fn write(self: *const Self, writer: *std.io.Writer) WriteError!void {
             _ = try writer.write("(define ");
             _ = try writer.write(self.name.lexeme);
             _ = try writer.write(" ");
             if (self.initializer) |initializer| {
                 try initializer.write(writer);
+            }
+            _ = try writer.write(")");
+        }
+    };
+
+    pub const Conditional = struct {
+
+        const Self = @This();
+
+        condition: *Expr,
+
+        if_branch: *Stmt,
+
+        else_branch: ?*Stmt,
+
+        allocator: std.mem.Allocator,
+
+        pub fn write(self: *const Self, writer: *std.io.Writer) WriteError!void {
+            _ = try writer.write("(if ");
+            try self.condition.write(writer);
+            _ = try writer.write(" ");
+            try self.if_branch.write(writer);
+            if (self.else_branch) |else_branch| {
+                _ = try writer.write(" ");
+                try else_branch.write(writer);
             }
             _ = try writer.write(")");
         }
@@ -184,13 +213,14 @@ pub const Stmt = union(enum) {
 
         allocator: std.mem.Allocator,
 
-        pub fn add_statement(self: *Self, stmt: Stmt) !void {
+        pub fn write(self: *const Self, writer: *std.io.Writer) !void {
+                
+            var it = self.statements.constIterator(0);
 
-            const copy = try self.allocator.create(Stmt);
+            while (it.next()) |stmt| {
+                try stmt.*.write(writer);
+            }
 
-            copy.* = stmt;
-
-            try self.statements.append(self.allocator, copy);
         }
 
         pub fn deinit(self: *Self) void {
@@ -198,7 +228,6 @@ pub const Stmt = union(enum) {
 
             while (it.next()) |stmt| {
                 stmt.*.deinit();
-                self.allocator.destroy(stmt.*);
             }
 
             self.statements.deinit(self.allocator); 
@@ -209,6 +238,21 @@ pub const Stmt = union(enum) {
     print: Print,
     variable: Var,
     block: Block,
+    conditional: Conditional,
+
+    pub fn make(value: anytype) Ref {
+        const T = @TypeOf(value);
+
+        const ui = @typeInfo(Ref);
+
+        inline for (ui.@"union".fields) |f| {
+            if (T == f.type) {
+                return @unionInit(Ref, f.name, value);
+            }
+        }
+
+        @compileError("Expr.make: type " ++ @typeName(T) ++ " is not a valid Expr variant");
+    }
 
     pub fn deinit(self: *Ref) void {
 
@@ -219,24 +263,18 @@ pub const Stmt = union(enum) {
 
     }
 
-    pub fn write(self: *const Ref, writer: *std.io.Writer) !void {
+    pub fn write(self: *const Ref, writer: *std.io.Writer) WriteError!void {
         switch (self.*) {
             .expression => |expr| try expr.write(writer),
             .print => |expr| try expr.write(writer),
             .variable => |variable| try variable.write(writer),
-            .block => |block| {
-                
-                var it = block.statements.constIterator(0);
-
-                while (it.next()) |stmt| {
-                    try stmt.*.write(writer);
-                }
-            },
+            .block => |block| try block.write(writer),
+            .conditional => |cond| try cond.write(writer)
         }
     }
 };
 
-const StatementList = std.SegmentedList(Stmt, 16);
+const StatementList = std.SegmentedList(*Stmt, 16);
 
 pub const Program = struct {
 
@@ -256,11 +294,7 @@ pub const Program = struct {
 
     pub fn deinit(self: *Self) void {
 
-        var it = self.statements.iterator(0);
-
-        while (it.next()) |stmt| {
-            stmt.deinit();
-        }
+        // The statement pointers themselves are deallocated by the Parser.
 
         self.statements.deinit(self.allocator);
     }
@@ -271,8 +305,9 @@ pub const Program = struct {
 
         var i : usize = 0;
 
-        while (it.next())  |stmt| {
-            try stmt.write(writer);
+        while (it.next()) |stmt| {
+
+            try stmt.*.write(writer);
 
             if (i + 1 < self.statements.len) {
                 _ = try writer.write("\n");

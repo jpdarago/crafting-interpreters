@@ -57,7 +57,7 @@ pub fn evaluate(self: *Self) !Ast.LoxValue {
     var it = program.statements.constIterator(0);
 
     while (it.next()) |stmt| {
-        result = try self.evaluate_statement(stmt, &self.environment);        
+        result = try self.evaluate_statement(stmt.*, &self.environment);        
     }
 
     return result;
@@ -125,6 +125,22 @@ fn evaluate_statement(self: *Self, stmt: *const Ast.Stmt, env: *Environment) Eva
 
             return .nil;
         },
+        .conditional => |conditional| {
+
+            const cond = try self.evaluate_expr(conditional.condition, env);
+
+            if (is_truthy(cond)) {
+
+                return self.evaluate_statement(conditional.if_branch, env);
+
+            } else if (conditional.else_branch) |else_branch| {
+
+                return self.evaluate_statement(else_branch, env);
+
+            }
+        
+            return .nil;
+        }
     }
 }
 

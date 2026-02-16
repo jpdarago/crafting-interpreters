@@ -22,6 +22,8 @@ tokens: []const Scanner.Token,
 // We use a segmented list to ensure pointer stability.
 nodes: std.SegmentedList(Expr, 64),
 
+statements: std.SegmentedList(Stmt, 64),
+
 ast: ?*Expr,
 
 diagnostics: *Diagnostics,
@@ -37,12 +39,21 @@ pub fn init(
         .tokens = tokens,
         .current = 0,
         .nodes = std.SegmentedList(Expr, 64) {},
+        .statements = std.SegmentedList(Stmt, 64) {},
         .ast = null,
     };
 }
 
 pub fn deinit(self: *Self) void {
     self.nodes.deinit(self.allocator);
+
+    var it = self.statements.iterator(0);
+
+    while (it.next()) |stmt| {
+        stmt.deinit();
+    }
+
+    self.statements.deinit(self.allocator); 
 }
 
 pub fn parse(self: *Self) !Program {
@@ -64,7 +75,14 @@ fn make_node(self: *Self, node: anytype) !*Expr {
     return p;
 }
 
-fn declaration(self: *Self) !Stmt {
+fn make_statement(self: *Self, node: anytype) !*Stmt {
+    try self.statements.append(self.allocator, undefined);
+    const p = self.statements.at(self.statements.len - 1);
+    p.* = Stmt.make(node);
+    return p;
+}
+
+fn declaration(self: *Self) !*Stmt {
     
     if (self.match(.{ .VAR })) {
 
@@ -79,7 +97,7 @@ fn declaration(self: *Self) !Stmt {
     return stmt;
 }
 
-fn var_declaration(self: *Self) !Stmt {
+fn var_declaration(self: *Self) !*Stmt {
 
     const name = try self.consume(.IDENTIFIER, "Expected variable name");
 
@@ -91,12 +109,10 @@ fn var_declaration(self: *Self) !Stmt {
 
     _ = try self.consume(.SEMICOLON, "Expect ';' after variable declaration");
 
-    return Stmt { 
-        .variable = Stmt.Var {
-            .name = name,
-            .initializer = initializer 
-        }
-    };
+    return self.make_statement(Stmt.Var {
+        .name = name,
+        .initializer = initializer 
+    });
 }
 
 fn synchronize(self: *Self) void {
@@ -125,7 +141,12 @@ fn synchronize(self: *Self) void {
     _ = self.advance();
 }
 
-fn statement(self: *Self) !Stmt {
+fn statement(self: *Self) !*Stmt {
+
+    if (self.match(.{.IF })) {
+        
+        return self.if_statement();    
+    }
 
     if (self.match(.{.PRINT})) {
 
@@ -140,7 +161,23 @@ fn statement(self: *Self) !Stmt {
     return self.expression_statement();
 }
 
-fn block(self: *Self) ParseError!Stmt {
+fn if_statement(self: *Self) ParseError!*Stmt {
+    _ = try self.consume(.LEFT_PAREN, "Expected '(' after 'if'");
+    const cond = try self.expression();
+    _ = try self.consume(.RIGHT_PAREN, "Expected ')' after if condition");
+
+    const if_branch = try self.statement();
+    const else_branch : ?*Stmt = if (self.match(.{.ELSE})) try self.statement() else null;
+
+    return self.make_statement(Stmt.Conditional { 
+        .allocator =  self.allocator,
+        .condition = cond,
+        .if_branch = if_branch,
+        .else_branch = else_branch
+    });
+}
+
+fn block(self: *Self) ParseError!*Stmt {
 
     var result = Stmt.Block {
         .allocator = self.allocator,
@@ -151,34 +188,30 @@ fn block(self: *Self) ParseError!Stmt {
 
         const stmt = try self.declaration();
 
-        result.add_statement(stmt) catch {
-
-            // TODO(jp): Error handling
-            return ParseError.OutOfMemory;
-        };
+        try result.statements.append(self.allocator, stmt);
     }
 
     _ = try self.consume(.RIGHT_BRACE, "Expected '}' after block.");
 
-    return Stmt { .block = result };
+    return self.make_statement(result);
 }
 
-fn print_statement(self: *Self) ParseError!Stmt {
+fn print_statement(self: *Self) ParseError!*Stmt {
 
     const expr = try self.expression();
 
     _ = try self.consume(.SEMICOLON, "Expected ';' after value");
 
-    return Stmt { .print = Stmt.Print { .expression = expr } };
+    return self.make_statement(Stmt.Print { .expression = expr });
 }
 
-pub fn expression_statement(self: *Self) ParseError!Stmt {
+pub fn expression_statement(self: *Self) ParseError!*Stmt {
 
     const expr = try self.expression();
 
     _ = try self.consume(.SEMICOLON, "Expected ';' after value");
 
-    return Stmt { .expression = Stmt.Expression { .expression = expr } };
+    return self.make_statement(Stmt.Expression { .expression = expr });
 }
 
 fn expression(self: *Self) ParseError!*Expr {
