@@ -1,0 +1,22 @@
+print true and "truth";
+print false or "falsehood";
+
+print nil or "falsehood";
+print nil and "falsehood";
+
+var x = 1;
+var y = 2;
+
+if (x == 1 and y == 1) {
+  print "AND!";
+} else {
+  print "NOT AND!";
+}
+
+if (x == 1 and y == 2) {
+  print "TRIED AGAIN!";
+} 
+
+if (x == 1 or y == 1) {
+  print "OR!";
+}

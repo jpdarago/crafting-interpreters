@@ -74,6 +74,16 @@ pub const Expr = union(enum) {
         value: *Ref
     };
 
+    pub const Logical = struct {
+        const Self = @This();
+
+        left: *Ref,
+
+        operator: Scanner.Token,
+        
+        right: *Ref
+    };
+
     pub fn make(value: anytype) Ref {
         const T = @TypeOf(value);
 
@@ -124,7 +134,16 @@ pub const Expr = union(enum) {
                 _ = try writer.write(" ");
                 try assign.value.write(writer);
                 _ = try writer.write(")");
-            }
+            },
+            .logical => |logic| {
+                _ = try writer.write("(");
+                _ = try writer.write(logic.operator.lexeme);
+                _ = try writer.write(" ");
+                try logic.left.write(writer);
+                _ = try writer.write(" ");
+                try logic.right.write(writer);
+                _ = try writer.write(")");
+            },
         }
     }
 
@@ -133,7 +152,8 @@ pub const Expr = union(enum) {
     literal: Literal,
     unary: Unary,
     variable: Variable,
-    assign: Assign
+    assign: Assign,
+    logical: Logical
 };
 
 pub const Stmt = union(enum) {

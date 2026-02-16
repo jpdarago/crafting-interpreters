@@ -283,6 +283,25 @@ fn evaluate_expr(self: *Self, expr: *const Ast.Expr, env: *Environment) EvalErro
                 return err;
             };
             return value;
+        },
+        .logical => |logical| {
+
+            const lhs = try self.evaluate_expr(logical.left, env);
+
+            if (logical.operator.type == .OR) {
+
+                if (is_truthy(lhs)) {
+                    return lhs;
+                }
+
+            } else if (logical.operator.type == .AND){
+
+                if (!is_truthy(lhs)) {
+                    return lhs;
+                }
+            }
+
+            return self.evaluate_expr(logical.right, env);
         }
     }
 

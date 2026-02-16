@@ -221,7 +221,7 @@ fn expression(self: *Self) ParseError!*Expr {
 
 fn assignment(self: *Self) ParseError!*Expr {
 
-    const expr = try self.equality();
+    const expr = try self.or_expr(); 
 
     if (self.match(.{.EQUAL})) {
 
@@ -242,6 +242,44 @@ fn assignment(self: *Self) ParseError!*Expr {
     }
 
     return expr;
+}
+
+fn or_expr(self: *Self) ParseError!*Expr {
+
+    var expr = try self.and_expr();
+
+    while (self.match(.{.OR})) {
+        
+        const operator = self.previous().?;
+        const right = try self.and_expr();
+
+        expr = try self.make_node(Expr.Logical {
+            .left = expr, 
+            .operator = operator, 
+            .right = right 
+        });
+    }
+    
+    return expr; 
+}
+
+fn and_expr(self: *Self) ParseError!*Expr {
+    
+    var expr = try self.equality();
+
+    while (self.match(.{.AND})) {
+        
+        const operator = self.previous().?;
+        const right = try self.equality();
+
+        expr = try self.make_node(Expr.Logical {
+            .left = expr, 
+            .operator = operator, 
+            .right = right 
+        });
+    }
+    
+    return expr; 
 }
 
 fn match(self: *Self, comptime args: anytype) bool {
