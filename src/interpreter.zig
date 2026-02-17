@@ -125,6 +125,22 @@ fn evaluate_statement(self: *Self, stmt: *const Ast.Stmt, env: *Environment) Eva
 
             return .nil;
         },
+        .loop => |loop| {
+
+            while (true) {
+
+                const cond = try self.evaluate_expr(loop.condition, env);
+
+                if (!is_truthy(cond)) {
+                    break;
+                }
+
+                _ = try self.evaluate_statement(loop.body, env);
+            }
+            
+            return .nil;
+
+        },
         .conditional => |conditional| {
 
             const cond = try self.evaluate_expr(conditional.condition, env);

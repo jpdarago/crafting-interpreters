@@ -200,6 +200,23 @@ pub const Stmt = union(enum) {
         }
     };
 
+    pub const Loop = struct {
+
+        const Self = @This();
+
+        condition: *Expr,
+
+        body: *Stmt,
+
+        pub fn write(self: *const Self, writer: *std.io.Writer) WriteError!void {
+            _ = try writer.write("(while ");
+            try self.condition.write(writer);
+            _ = try writer.write(" ");
+            try self.body.write(writer);
+            _ = try writer.write(")");
+        }
+    };
+
     pub const Conditional = struct {
 
         const Self = @This();
@@ -259,6 +276,7 @@ pub const Stmt = union(enum) {
     variable: Var,
     block: Block,
     conditional: Conditional,
+    loop: Loop,
 
     pub fn make(value: anytype) Ref {
         const T = @TypeOf(value);
@@ -289,7 +307,8 @@ pub const Stmt = union(enum) {
             .print => |expr| try expr.write(writer),
             .variable => |variable| try variable.write(writer),
             .block => |block| try block.write(writer),
-            .conditional => |cond| try cond.write(writer)
+            .conditional => |cond| try cond.write(writer),
+            .loop => |loop| try loop.write(writer)
         }
     }
 };

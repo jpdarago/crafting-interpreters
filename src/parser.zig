@@ -148,6 +148,11 @@ fn statement(self: *Self) !*Stmt {
         return self.if_statement();    
     }
 
+    if (self.match(.{.WHILE})) {
+
+        return self.loop_statement();
+    }
+
     if (self.match(.{.PRINT})) {
 
         return self.print_statement();
@@ -159,6 +164,19 @@ fn statement(self: *Self) !*Stmt {
     }
 
     return self.expression_statement();
+}
+
+fn loop_statement(self: *Self) ParseError!*Stmt {
+    _ = try self.consume(.LEFT_PAREN, "Expected '(' after 'while'");
+    const cond = try self.expression();
+    _ = try self.consume(.RIGHT_PAREN, "Expected ')' after if condition");
+
+    const body = try self.statement();
+
+    return self.make_statement(Stmt.Loop { 
+        .condition = cond,
+        .body = body
+    });
 }
 
 fn if_statement(self: *Self) ParseError!*Stmt {
