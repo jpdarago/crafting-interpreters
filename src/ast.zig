@@ -217,6 +217,36 @@ pub const Stmt = union(enum) {
         }
     };
 
+    pub const ForLoop = struct {
+
+        const Self = @This();
+
+        initializer: ?*Stmt,
+
+        condition: ?*Expr,
+
+        body: *Stmt,
+
+        increment: ?*Expr,
+
+        pub fn write(self: *const Self, writer: *std.io.Writer) WriteError!void {
+            _ = try writer.write("(for ");
+            if (self.initializer) |init| {
+                try init.write(writer);
+                _ = try writer.write(" ");
+            }
+            if (self.condition) |condition| {
+                try condition.write(writer);
+                _ = try writer.write(" ");
+            }
+            try self.body.write(writer);
+            if (self.increment) |increment| {
+                try increment.write(writer);
+            }
+            _ = try writer.write(")");
+        }
+    };
+
     pub const Conditional = struct {
 
         const Self = @This();
@@ -277,6 +307,7 @@ pub const Stmt = union(enum) {
     block: Block,
     conditional: Conditional,
     loop: Loop,
+    for_loop: ForLoop,
 
     pub fn make(value: anytype) Ref {
         const T = @TypeOf(value);
@@ -308,7 +339,8 @@ pub const Stmt = union(enum) {
             .variable => |variable| try variable.write(writer),
             .block => |block| try block.write(writer),
             .conditional => |cond| try cond.write(writer),
-            .loop => |loop| try loop.write(writer)
+            .loop => |loop| try loop.write(writer),
+            .for_loop => |loop| try loop.write(writer)
         }
     }
 };

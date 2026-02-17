@@ -141,6 +141,35 @@ fn evaluate_statement(self: *Self, stmt: *const Ast.Stmt, env: *Environment) Eva
             return .nil;
 
         },
+        .for_loop => |loop| {
+
+            if (loop.initializer) |initializer| {
+
+                _ = try self.evaluate_statement(initializer, env);
+            }
+
+            while (true) {
+
+                var cond = Ast.LoxValue { .boolean = true };
+
+                if (loop.condition) |condition| {
+                    cond = try self.evaluate_expr(condition, env);
+                }
+
+                if (!is_truthy(cond)) {
+                    break;
+                }
+
+                _ = try self.evaluate_statement(loop.body, env);
+
+                if (loop.increment) |increment| {
+                    _ = try self.evaluate_expr(increment, env);
+                }
+            }
+            
+            return .nil;
+
+        },
         .conditional => |conditional| {
 
             const cond = try self.evaluate_expr(conditional.condition, env);

@@ -148,6 +148,11 @@ fn statement(self: *Self) !*Stmt {
         return self.if_statement();    
     }
 
+    if (self.match(.{.FOR})) {
+
+        return self.for_statement();
+    }
+
     if (self.match(.{.WHILE})) {
 
         return self.loop_statement();
@@ -164,6 +169,44 @@ fn statement(self: *Self) !*Stmt {
     }
 
     return self.expression_statement();
+}
+
+fn for_statement(self: *Self) ParseError!*Stmt {
+
+    _ = try self.consume(.LEFT_PAREN, "Expected '(' after 'for'");
+
+    var initializer : ?*Stmt = undefined;
+
+    if (self.match(.{.SEMICOLON})) {
+        initializer = null;
+    } else if (self.match(.{.VAR})) {
+        initializer = try self.var_declaration();
+    } else {
+        initializer = try self.expression_statement();
+    }
+
+    var condition : ?*Expr = undefined;
+
+    if (!self.check(.SEMICOLON)) {
+        condition = try self.expression();
+    }
+    _ = try self.consume(.SEMICOLON, "Expect ';' after loop condition.");
+
+    var increment : ?*Expr = undefined;
+
+    if (!self.check(.RIGHT_PAREN)) {
+        increment = try self.expression();
+    }
+    _ = try self.consume(.RIGHT_PAREN, "Expect ')' after for clauses.");
+
+    const body = try self.statement();
+
+    return self.make_statement(Stmt.ForLoop {
+        .initializer = initializer,
+        .condition = condition,
+        .increment = increment,
+        .body = body
+    });
 }
 
 fn loop_statement(self: *Self) ParseError!*Stmt {
