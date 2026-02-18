@@ -1,0 +1,16 @@
+// Simulate a number guessing game with a fixed secret.
+var secret = 7;
+var guess = 1;
+var found = false;
+while (!found) {
+  if (guess == secret) {
+    print "Found it!";
+    print guess;
+    found = true;
+  } else if (guess > secret) {
+    print "Too high";
+  } else {
+    print "Too low";
+  }
+  guess = guess + 1;
+}

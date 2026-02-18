@@ -1,0 +1,17 @@
+// Demonstrate short-circuit evaluation with `or` and `and`.
+// `or` returns the first truthy value.
+print nil or "default";
+print "exists" or "default";
+
+// `and` returns the first falsy value, or the last value if all truthy.
+print nil and "unreachable";
+print "a" and "b" and "c";
+
+// Practical use: default values.
+var name = nil;
+var greeting = name or "stranger";
+print greeting;
+
+name = "Alice";
+greeting = name or "stranger";
+print greeting;

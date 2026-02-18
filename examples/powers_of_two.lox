@@ -1,0 +1,6 @@
+// Print powers of 2 up to 1024.
+var p = 1;
+while (p <= 1024) {
+  print p;
+  p = p * 2;
+}

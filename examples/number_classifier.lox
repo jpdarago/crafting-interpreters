@@ -1,0 +1,10 @@
+// Classify numbers as small, medium, or large.
+for (var n = 0; n <= 100; n = n + 10) {
+  if (n < 20) {
+    print "small";
+  } else if (n >= 20 and n < 60) {
+    print "medium";
+  } else {
+    print "large";
+  }
+}
