@@ -10,3 +10,12 @@
 [submodule "references/bun"]
 	path = references/bun
 	url = https://github.com/oven-sh/bun.git
+[submodule "references/lua"]
+	path = references/lua
+	url = https://github.com/lua/lua
+[submodule "references/dart"]
+	path = references/dart
+	url = git@github.com:dart-lang/sdk.git
+[submodule "references/go"]
+	path = references/go
+	url = git@github.com:golang/go.git

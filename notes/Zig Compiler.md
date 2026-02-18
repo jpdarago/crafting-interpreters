@@ -201,4 +201,47 @@ When a node needs more than 2 child references (e.g., function parameters, block
 
 The Zig approach is optimized for large programs where cache behavior matters. Our approach is simpler and more natural for a small interpreter.
 
+## Error Handling
+
+### Error accumulation
+
+The parser collects **all errors** rather than stopping at the first one:
+
+```zig
+errors: std.ArrayList(AstError),
+```
+
+Each error has a **tag** (one of 100+ variants like `expected_semi_after_decl`, `expected_comma_after_field`), a token index pointing to the offending location, and optional extra data for additional context.
+
+Two reporting functions:
+- `warn()` — records the error and **continues parsing** (used for non-fatal issues)
+- `fail()` — records the error and **returns `error.ParseError`** to unwind
+
+### Error recovery: container member skipping
+
+When a parse error occurs in a declaration, the parser catches the error and skips to the next container member:
+
+```zig
+fn findNextContainerMember() void {
+    // Skip tokens until we find something that looks like the start
+    // of a new declaration: keyword_pub, keyword_fn, keyword_const,
+    // keyword_var, keyword_test, etc.
+}
+```
+
+This is **container-boundary recovery** — errors in one declaration don't affect parsing of the next. The Zig compiler reports all errors from all declarations in a single compile.
+
+### Error bundle rendering
+
+After parsing, all errors are formatted into an `ErrorBundle` that renders with source context, caret markers, and notes — similar to Rust's error output. Errors are sorted by source position.
+
+### Contrast with our error handling
+
+| Aspect | Zig Compiler | Ours |
+|--------|-------------|------|
+| Strategy | Accumulate all errors | Set flag, continue |
+| Recovery | Skip to next container member | Return error, no skip |
+| Error data | Tag + token index + extra | Line number + message string |
+| Output | ErrorBundle with source context | `[file:line] message` to stderr |
+
 #zig #tokenizer #parser #ast #reference

@@ -328,6 +328,76 @@ fn run(self: *VM) !void {
 
 Mark-and-sweep GC with an intrusive gray list (linked list embedded in objects, not a separate ArrayList — avoids OOM during GC).
 
+## Error Handling
+
+### Panic mode — straight from the book
+
+zig-lox implements the **exact panic mode** from Crafting Interpreters Part III:
+
+```zig
+pub const Parser = struct {
+    hadError: bool,
+    panicMode: bool,
+    // ...
+};
+
+fn errorAt(self: *Parser, token: *Token, message: []const u8) {
+    if (self.panicMode) return;   // suppress cascading errors
+    self.panicMode = true;
+
+    vm.errWriter.print("[line {d}] Error", .{token.line});
+    if (token.tokenType == .Eof) {
+        vm.errWriter.print(" at end", .{});
+    } else {
+        vm.errWriter.print(" at '{s}'", .{token.lexeme});
+    }
+    vm.errWriter.print(": {s}\n", .{message});
+    self.hadError = true;
+}
+```
+
+### Synchronization
+
+After entering panic mode, the parser skips tokens until finding a statement boundary:
+
+```zig
+fn synchronize(self: *Parser) {
+    self.panicMode = false;
+
+    while (!self.check(.Eof)) {
+        if (self.previous.tokenType == .Semicolon) return;
+        switch (self.current.tokenType) {
+            .Class, .Fun, .Var, .For, .If, .While, .Print, .Return => return,
+            else => try self.advance(),
+        }
+    }
+}
+```
+
+Called after each declaration: `if (self.panicMode) try self.synchronize()`.
+
+### Error messages
+
+Simple format with line number and token context:
+```
+[line 42] Error at 'x': Invalid assignment target.
+[line 10] Error at end: Expect '}' after block.
+```
+
+No column numbers, no source line display. Direct write to stderr.
+
+### Contrast with our error handling
+
+| Aspect | zig-lox | Ours |
+|--------|---------|------|
+| Strategy | Panic mode + synchronize | `had_error` flag + return error |
+| Cascading suppression | Yes (panicMode flag) | No |
+| Recovery | Skip to statement keyword | None (error propagates up) |
+| Message format | `[line N] Error at 'tok': msg` | `[file:line] msg` |
+| Multiple errors | Yes (after synchronization) | Yes (but no sync, so more noise) |
+
+This is the textbook implementation our interpreter could adopt — `panicMode` is the simplest effective error recovery strategy.
+
 ## Comparison with our tree-walker
 
 | Aspect | zig-lox (bytecode VM) | Ours (tree-walker) |

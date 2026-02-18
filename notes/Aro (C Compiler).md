@@ -222,6 +222,68 @@ Notable: every expression node carries a `QualType` — the result type includin
 
 Aro inserts **explicit cast nodes** for every implicit conversion (e.g., lvalue-to-rvalue, array-to-pointer, integer promotion). The `Cast.Kind` enum has 55+ variants tracking exactly what conversion occurs. Our interpreter doesn't need this since values carry their types at runtime.
 
+## Error Handling
+
+### Diagnostics system
+
+Aro has the most sophisticated diagnostics of the Zig projects — modeled after GCC/Clang's warning infrastructure:
+
+```zig
+pub const Diagnostics = struct {
+    errors: u32,
+    warnings: u32,
+    total: u32,
+    state: State,
+};
+```
+
+The `State` struct controls diagnostic behavior:
+- `fatal_errors: bool` — `-Wfatal-errors` (stop on first error)
+- `error_warnings: bool` — `-Werror` (treat all warnings as errors)
+- `enable_all_warnings: bool` — `-Weverything`
+- `ignore_warnings: bool` — `-w` (suppress all warnings)
+- `options: EnumMap(Option, Message.Kind)` — per-warning configuration (`-Wfoo=error`)
+
+### Severity system
+
+Each diagnostic has a **kind** (error, warning, note) that can be overridden by compiler flags. `effectiveKind()` applies the rules:
+1. System header warnings are suppressed
+2. `-w` suppresses all warnings
+3. `-Werror` promotes warnings to errors
+4. Individual `-W<name>=<level>` options override specific diagnostics
+5. Extension warnings respect `-Wpedantic`
+
+This gives Aro 75+ configurable warning categories — matching real C compiler behavior.
+
+### Error reporting
+
+```zig
+fn err(p: *Parser, tok_i: TokenIndex, diagnostic: Diagnostic, args: anytype) {
+    p.diagnostics.addWithLocation(p.comp, .{
+        .kind = diagnostic.kind,
+        .text = formatted_text,
+        .location = tok.loc.expand(comp),
+    }, macro_expansions, note_location);
+}
+```
+
+Errors include **macro expansion backtraces** — if an error occurs inside a macro, the diagnostic shows the full expansion chain with notes pointing to each expansion site.
+
+### Error recovery
+
+Same concept as our panic mode — `synchronize()` skips to the next statement boundary. The parser continues collecting diagnostics after each error.
+
+### Contrast with our error handling
+
+| Aspect | Aro | Ours |
+|--------|-----|------|
+| Strategy | Accumulate all, configurable severity | Set flag, fixed severity |
+| Warning system | 75+ categories, `-W` flags | No warnings |
+| Recovery | Skip to statement boundary | Return error |
+| Message levels | Error / warning / note | Error only |
+| Macro context | Full expansion backtrace | N/A |
+| Output format | GCC/Clang-compatible | `[file:line] message` |
+
 ## Comparison with our interpreter
 
 | Aspect | Aro | Ours |

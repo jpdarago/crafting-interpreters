@@ -245,6 +245,56 @@ Uses opaque `ExprNodeIndex` and `StmtNodeIndex` instead of raw pointers. This en
 | Memory | Thread-local pools, index-based | Arena allocator |
 | Features | JS/TS/JSX, modules, destructuring, optional chaining | Literals, variables, control flow |
 
+## Error Handling
+
+### Centralized logger
+
+Bun uses a shared `logger.Log` system rather than parser-specific error handling:
+
+```zig
+pub const Log = struct {
+    warnings: u32,
+    errors: u32,
+    msgs: std.array_list.Managed(Msg),
+    level: Level,   // verbose | debug | info | warn | err
+};
+
+pub const Msg = struct {
+    kind: Kind,     // err | warn | note | debug | verbose
+    data: Data,     // text + optional location
+    notes: []Data,  // attached notes for context
+};
+```
+
+The parser holds a `log: *logger.Log` pointer and calls `log.addError(source, loc, text)` or `log.addRangeError(source, range, text)` for errors with byte-range context.
+
+### Error messages with source context
+
+Error output includes line text with a caret marker:
+
+```
+5 | const x = ;
+              ^
+error: Unexpected end of file
+  at example.js:5:12
+```
+
+Messages have attached **notes** for additional context (e.g., "did you mean ...?" or "previous definition here").
+
+### Recovery strategy
+
+The parser **continues after errors** without a panic mode — it logs the error and attempts to parse the next construct. This works because JS/TS has enough syntactic landmarks (semicolons, braces) for the parser to resynchronize. The `Log.level` field filters which messages are actually emitted.
+
+### Contrast with our error handling
+
+| Aspect | Bun | Ours |
+|--------|-----|------|
+| Strategy | Centralized log, continue parsing | Set flag, return error |
+| Severity levels | 5 (verbose → error) | 1 (error only) |
+| Message data | Text + location + notes | Line number + message |
+| Source context | Line text with caret | None |
+| Output | Terminal with ANSI colors | Plain stderr |
+
 ### Lessons for our interpreter
 
 1. **Comptime configuration** is powerful — `NewLexer()` eliminates runtime branching for static features
