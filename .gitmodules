@@ -1,0 +1,12 @@
+[submodule "references/zig-lox"]
+	path = references/zig-lox
+	url = https://github.com/jwmerrill/zig-lox.git
+[submodule "references/zig"]
+	path = references/zig
+	url = https://github.com/ziglang/zig.git
+[submodule "references/arocc"]
+	path = references/arocc
+	url = https://github.com/Vexu/arocc.git
+[submodule "references/bun"]
+	path = references/bun
+	url = https://github.com/oven-sh/bun.git
