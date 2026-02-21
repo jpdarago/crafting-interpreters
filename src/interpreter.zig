@@ -205,6 +205,7 @@ fn evaluate_expr(self: *Self, expr: *const Ast.Expr, env: *Environment) EvalErro
     
     switch (expr.*) {
         .literal => |lit| { return lit.value; },
+        .call => { std.debug.panic("Not implemented yet", .{}); },
         .binary => |bin| {
             const lhs = try self.evaluate_expr(bin.left, env);
             const rhs = try self.evaluate_expr(bin.right, env);

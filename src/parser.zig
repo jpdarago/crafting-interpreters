@@ -45,15 +45,26 @@ pub fn init(
 }
 
 pub fn deinit(self: *Self) void {
-    self.nodes.deinit(self.allocator);
 
-    var it = self.statements.iterator(0);
+    {
+        var it = self.nodes.iterator(0);
 
-    while (it.next()) |stmt| {
-        stmt.deinit();
+        while (it.next()) |node| {
+            node.deinit();
+        }
+
+        self.nodes.deinit(self.allocator);
     }
 
-    self.statements.deinit(self.allocator); 
+    {
+        var it = self.statements.iterator(0);
+
+        while (it.next()) |stmt| {
+            stmt.deinit();
+        }
+
+        self.statements.deinit(self.allocator); 
+    }
 }
 
 pub fn parse(self: *Self) !Program {
@@ -493,7 +504,48 @@ fn unary(self: *Self) ParseError!*Expr {
         });
     }
 
-    return self.primary();
+    return self.call();
+}
+
+fn call(self: *Self) ParseError!*Expr {
+
+    var expr = try self.primary();
+
+    while (true) {
+        if (self.match(.{.LEFT_PAREN})) {
+            expr = try self.finish_call(expr);
+        } else {
+            break;
+        }
+    }
+
+    return expr;
+}
+
+fn finish_call(self: *Self, callee: *Ast.Expr) ParseError!*Expr {
+
+    var args : std.ArrayList(*Ast.Expr)= .empty;  
+
+    if (!self.check(.RIGHT_PAREN)) {
+        while (true) {
+            if (args.items.len >= 255) {
+                self.diagnostics.report_error(self.peek().?.line, "Too many arguments (max supported is 255)");
+            }
+            try args.append(self.allocator, try self.expression());
+            if (!self.match(.{.COMMA})) {
+                break;
+            }
+        }
+    }
+
+    const paren = try self.consume(.RIGHT_PAREN, "Expected ')' after arguments");
+
+    return self.make_node(Expr.Call {
+        .allocator = self.allocator,
+        .args = args,
+        .callee = callee,
+        .paren = paren
+    });
 }
 
 fn primary(self: *Self) ParseError!*Expr {

@@ -40,6 +40,24 @@ pub const Expr = union(enum) {
         right: *Ref
     };
 
+    pub const Call = struct {
+        const Self = @This();
+
+        callee: *Ref,
+
+        paren: Scanner.Token,
+
+        args: std.ArrayList(*Expr),
+
+        allocator: std.mem.Allocator,
+
+        // TODO(jp): Maybe we do not need this and we should instead allocate 
+        // in the parser the memory for parameters.
+        pub fn deinit(self: *Self) void {
+            self.args.deinit(self.allocator);
+        }
+    };
+
     pub const Grouping = struct {
         const Self = @This();
         
@@ -98,6 +116,14 @@ pub const Expr = union(enum) {
         @compileError("Expr.make: type " ++ @typeName(T) ++ " is not a valid Expr variant");
     }
 
+    pub fn deinit(self: *Ref) void {
+
+        switch (self.*) {
+            .call => |*call| { call.deinit(); },
+            else => {},
+        }
+    }
+
     pub fn write(self: *const Ref, writer: *std.io.Writer) WriteError!void {
 
         switch (self.*) {
@@ -144,10 +170,31 @@ pub const Expr = union(enum) {
                 try logic.right.write(writer);
                 _ = try writer.write(")");
             },
+            .call => |call| {
+
+                _ = try writer.write("(. ");
+
+                try call.callee.write(writer);
+
+                _ = try writer.write("  ");
+
+                const args = call.args;
+
+                for (args.items, 0..) |arg, i| {
+
+                    try arg.write(writer);
+
+                    if (i +  1 < args.items.len)  {
+                        _ = try writer.write("  ");
+                    }
+                }
+                _ = try writer.write(")");
+            }
         }
     }
 
     binary: Binary,
+    call: Call,
     grouping: Grouping,
     literal: Literal,
     unary: Unary,
@@ -291,12 +338,6 @@ pub const Stmt = union(enum) {
         }
 
         pub fn deinit(self: *Self) void {
-            var it = self.statements.iterator(0);
-
-            while (it.next()) |stmt| {
-                stmt.*.deinit();
-            }
-
             self.statements.deinit(self.allocator); 
         }
     };

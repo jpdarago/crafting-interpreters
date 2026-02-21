@@ -2,7 +2,8 @@ pub const ParseError = error {
     UnexpectedToken,
     ExpressionExpected,
     FloatError,
-    OutOfMemory
+    OutOfMemory,
+    MaximumArgumentsExceeded
 };
 
 pub const EvalError = error {
