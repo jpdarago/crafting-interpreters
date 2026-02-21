@@ -205,7 +205,35 @@ fn evaluate_expr(self: *Self, expr: *const Ast.Expr, env: *Environment) EvalErro
     
     switch (expr.*) {
         .literal => |lit| { return lit.value; },
-        .call => { std.debug.panic("Not implemented yet", .{}); },
+        .call => |call| { 
+
+            var callee = switch (try self.evaluate_expr(call.callee, env)) {
+                .callable => |c| c,
+                else => {
+                    self.diagnostics.report_error(call.paren.line, "Can only call functions and classes.");
+                    return EvalError.InvalidExpression;
+                },
+            };
+            
+            var arena = std.heap.ArenaAllocator.init(self.allocator);
+            defer arena.deinit();
+
+            const num_args = call.args.items.len;
+
+            if (callee.arity() != num_args) {
+                self.diagnostics.report("<inline>", call.paren.line, "Invalid number of arguments, expected {d} got {d}", .{callee.arity(), num_args});
+                return EvalError.InvalidArguments;
+            }
+
+            var args = std.ArrayList(Ast.LoxValue).initCapacity(arena.allocator(), num_args) catch return EvalError.InternalFailure;
+            defer args.deinit(arena.allocator());
+
+            for (call.args.items) |arg| {
+                args.appendAssumeCapacity(try self.evaluate_expr(arg, env));
+            }
+
+            return try callee.call(self.diagnostics, args.items);
+        },
         .binary => |bin| {
             const lhs = try self.evaluate_expr(bin.left, env);
             const rhs = try self.evaluate_expr(bin.right, env);
@@ -410,6 +438,7 @@ fn are_equal(self: *Self, token: Scanner.Token, lhs: Ast.LoxValue, rhs: Ast.LoxV
         .number => lhs.number == rhs.number,
         .string => std.mem.eql(u8, lhs.string, rhs.string),
         .boolean => lhs.boolean == rhs.boolean,
+        .callable => false,
         .nil => true
     };
 }

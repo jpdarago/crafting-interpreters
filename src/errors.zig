@@ -12,6 +12,7 @@ pub const EvalError = error {
     InvalidExpression,
     DivisionByZero,
     UndefinedVariable,
-    InternalFailure
+    InternalFailure,
+    InvalidArguments
 };
 
