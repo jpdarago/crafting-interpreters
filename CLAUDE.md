@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-A tree-walking Lox interpreter written in Zig, following [Crafting Interpreters](https://craftinginterpreters.com/) (currently up to chapter 9: Control Flow).
+A tree-walking Lox interpreter written in Zig, following [Crafting Interpreters](https://craftinginterpreters.com/) (currently in chapter 10: Functions, section 10.2.1).
 
 ## Build & Run
 
@@ -24,7 +24,7 @@ The interpreter is a classic pipeline: source text → scanner → parser → AS
 **Pipeline flow** (`driver.zig` orchestrates):
 1. **Scanner** (`scanner.zig`) — tokenizes source into `Token` array. Uses a compile-time static map for keyword lookup.
 2. **Parser** (`parser.zig`) — recursive descent parser producing an AST. Operator precedence is encoded in the call chain: `expression → assignment → or_expr → and_expr → equality → comparison → term → factor → unary → primary`. Uses `SegmentedList` for pointer stability of AST nodes.
-3. **AST** (`ast.zig`) — `Expr` and `Stmt` are tagged unions. `LoxValue` is a union of `f64 | bool | []const u8 | nil`. Nodes are constructed via a comptime `make()` helper.
+3. **AST** (`ast.zig`) — `Expr` and `Stmt` are tagged unions. `LoxValue` is a union of `f64 | bool | []const u8 | nil | LoxCallable`. `LoxCallable` is a tagged union of `NativeFunction | LoxFunction`, replacing Java's `LoxCallable` interface. Nodes are constructed via a comptime `make()` helper.
 4. **Interpreter** (`interpreter.zig`) — evaluates AST nodes recursively. Manages a chain of `Environment` scopes for variable lookup.
 5. **Environment** (`environment.zig`) — `StringHashMap(LoxValue)` with an `enclosing` pointer for lexical scoping. Each block creates a new environment linked to its parent.
 
@@ -39,9 +39,11 @@ The interpreter is a classic pipeline: source text → scanner → parser → AS
 
 ## Currently Implemented Lox Features
 
-Literals, arithmetic/comparison/equality operators, unary operators, string concatenation, `print` statements, variable declarations/assignment, blocks with lexical scoping, `if`/`else`, logical operators (`and`/`or`), `while` loops, `for` loops.
+Literals, arithmetic/comparison/equality operators, unary operators, string concatenation, `print` statements, variable declarations/assignment, blocks with lexical scoping, `if`/`else`, logical operators (`and`/`or`), `while` loops, `for` loops, function call expressions (AST and parser done).
 
-**Not yet implemented:** functions, closures, classes, inheritance.
+**In progress (chapter 10):** `LoxCallable`/`LoxFunction` types are defined in `ast.zig`. Call expression evaluation in `interpreter.zig` is partially wired up (section 10.2.1). Next steps: finish `call` evaluation, implement `fun` declaration parsing/evaluation, wire up `return` statements, add native `clock()` function.
+
+**Not yet implemented:** closures, classes, inheritance.
 
 ## Example Programs
 

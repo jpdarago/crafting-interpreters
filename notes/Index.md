@@ -45,4 +45,36 @@ Notes on how other projects implement scanning and parsing, for comparison with 
 - **Synthetic token insertion** ([[Dart (SDK)#Error Handling]]) - insert fake tokens to complete broken constructs for IDE use
 - **Synchronization sets** ([[Go (Compiler)#Error Handling]]) - skip to statement-start keywords with progress tracking to prevent infinite loops
 
+## Implementation Progress
+
+**Current position:** Chapter 10 — Functions (section 10.2.1)
+
+### Completed
+- Chapter 4: Scanning
+- Chapter 5-6: Representing/Parsing Expressions
+- Chapter 7: Evaluating Expressions
+- Chapter 8: Statements and State (print, variables, blocks, scoping)
+- Chapter 9: Control Flow (if/else, while, for, logical operators)
+- Chapter 10 (partial): Call expression AST node, parser support for call expressions
+
+### In Progress (10.2.1)
+- `LoxCallable` tagged union (`NativeFunction | LoxFunction`) defined in `ast.zig`
+- `LoxValue` extended with `.callable` variant
+- Call expression evaluation partially wired in `interpreter.zig`
+- Const-correctness fixes needed on `LoxCallable.call()` and `LoxFunction.call()` (methods should take `*const Self` or value `Self`)
+- Exhaustive switch handling needed for new `.callable` variant in `are_equal`, `is_truthy`, etc.
+
+### Next Steps
+1. Finish call expression evaluation in interpreter (10.2)
+2. Implement native `clock()` function (10.3)
+3. Parse `fun` declarations — new `Stmt.Function` AST node (10.4)
+4. Evaluate function declarations — create `LoxFunction`, bind to environment (10.4)
+5. Implement `return` statements — new `Stmt.Return` AST node (10.5)
+6. Handle return via Zig error or sentinel value (10.5)
+7. Closures — capture environment at declaration time (10.6)
+
+### Design Decisions
+- **Callables as tagged union** rather than fat-pointer interface — Lox has a closed set of callable types, so exhaustive switching is preferred over open polymorphism. See [[zig-lox]] for comparison (uses Pratt parsing + bytecode, different tradeoffs).
+- **`NativeFunction`** uses a function pointer (`*const fn`) since natives are stateless; **`LoxFunction`** uses a method since it carries closure/params/body.
+
 #index #reference
