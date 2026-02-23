@@ -13,9 +13,9 @@ zig build              # build the interpreter
 zig build test         # run all tests (auto-discovers *_test.zig in src/)
 zig build run -- file.lox   # run a Lox script
 zig build run          # start the REPL
+zig build clean        # remove .zig-cache and zig-out
+zig build examples     # run all examples/*.lox files
 ```
-
-`make` runs `zig build test` by default.
 
 ## Architecture
 

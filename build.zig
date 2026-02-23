@@ -25,6 +25,26 @@ pub fn build(b: *std.Build) void {
     // ---- tests (auto-discover *_test.zig) ----
     const test_step = b.step("test", "Run all *_test.zig files");
     addTestsRecursive(b, test_step, target, optimize, "src");
+
+    // ---- clean ----
+    const clean_step = b.step("clean", "Remove build artifacts");
+    const clean_cmd = b.addSystemCommand(&.{ "rm", "-rf", ".zig-cache", "zig-out" });
+    clean_step.dependOn(&clean_cmd.step);
+
+    // ---- examples (run all examples/*.lox) ----
+    const examples_step = b.step("examples", "Run all example .lox files");
+    {
+        var dir = std.fs.cwd().openDir("examples", .{ .iterate = true }) catch return;
+        defer dir.close();
+        var it = dir.iterate();
+        while (it.next() catch return) |entry| {
+            if (entry.kind == .file and std.mem.endsWith(u8, entry.name, ".lox")) {
+                const r = b.addRunArtifact(exe);
+                r.addArg(b.fmt("examples/{s}", .{entry.name}));
+                examples_step.dependOn(&r.step);
+            }
+        }
+    }
 }
 
 /// Recursively scan `root_dir` for files ending in "_test.zig", add them via addTest(),
