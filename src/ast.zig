@@ -13,7 +13,6 @@ pub const NativeFunction = struct {
 };
 
 pub const LoxFunction = struct {
-
     const Self = @This();
 
     arity: u8,
@@ -22,7 +21,6 @@ pub const LoxFunction = struct {
     body: []const *Stmt,
 
     pub fn call(self: *const Self, diagnostics: *Diagnostics, args: []const LoxValue) EvalError!LoxValue {
-
         _ = self;
         _ = diagnostics;
         _ = args;
@@ -32,14 +30,12 @@ pub const LoxFunction = struct {
 };
 
 pub const LoxCallable = union(enum) {
-
     const Self = @This();
 
     native: NativeFunction,
     function: LoxFunction,
 
     pub fn call(self: *const Self, diagnostics: *Diagnostics, args: []const LoxValue) EvalError!LoxValue {
-
         return switch (self.*) {
             .native => |native| native.call(args),
             .function => |func| func.call(diagnostics, args),
@@ -47,7 +43,6 @@ pub const LoxCallable = union(enum) {
     }
 
     pub fn arity(self: *const Self) u8 {
-
         return switch (self.*) {
             .native => |native| native.arity,
             .function => |func| func.arity,
@@ -55,7 +50,6 @@ pub const LoxCallable = union(enum) {
     }
 
     pub fn name(self: *const Self) []const u8 {
-
         return switch (self.*) {
             .native => |native| native.name,
             .function => |func| func.name.lexeme,
@@ -73,24 +67,21 @@ pub const LoxValue = union(enum) {
     nil,
 
     pub fn write(self: *const Self, writer: *std.io.Writer) !void {
-
         switch (self.*) {
             .callable => |c| _ = try writer.write(c.name()),
             .number => |n| try writer.print("{d}", .{n}),
             .boolean => |b| try writer.print("{s}", .{if (b) "true" else "false"}),
             .string => |s| _ = try writer.write(s),
-            .nil => { _ = try writer.write("nil"); },
+            .nil => {
+                _ = try writer.write("nil");
+            },
         }
     }
-
 };
 
-const WriteError = error {
-    WriteFailed
-};
+const WriteError = error{WriteFailed};
 
 pub const Expr = union(enum) {
-
     const Ref = @This();
 
     pub const Binary = struct {
@@ -99,8 +90,8 @@ pub const Expr = union(enum) {
         left: *Ref,
 
         operator: Scanner.Token,
-        
-        right: *Ref
+
+        right: *Ref,
     };
 
     pub const Call = struct {
@@ -114,7 +105,7 @@ pub const Expr = union(enum) {
 
         allocator: std.mem.Allocator,
 
-        // TODO(jp): Maybe we do not need this and we should instead allocate 
+        // TODO(jp): Maybe we do not need this and we should instead allocate
         // in the parser the memory for parameters.
         pub fn deinit(self: *Self) void {
             self.args.deinit(self.allocator);
@@ -123,14 +114,14 @@ pub const Expr = union(enum) {
 
     pub const Grouping = struct {
         const Self = @This();
-        
-        expression: *Ref
+
+        expression: *Ref,
     };
 
     pub const Literal = struct {
         const Self = @This();
 
-        value: LoxValue
+        value: LoxValue,
     };
 
     pub const Unary = struct {
@@ -138,7 +129,7 @@ pub const Expr = union(enum) {
 
         operator: Scanner.Token,
 
-        expression: *Ref
+        expression: *Ref,
     };
 
     pub const Variable = struct {
@@ -146,13 +137,13 @@ pub const Expr = union(enum) {
 
         name: Scanner.Token,
     };
-    
+
     pub const Assign = struct {
         const Self = @This();
 
         name: Scanner.Token,
-        
-        value: *Ref
+
+        value: *Ref,
     };
 
     pub const Logical = struct {
@@ -161,8 +152,8 @@ pub const Expr = union(enum) {
         left: *Ref,
 
         operator: Scanner.Token,
-        
-        right: *Ref
+
+        right: *Ref,
     };
 
     pub fn make(value: anytype) Ref {
@@ -180,15 +171,15 @@ pub const Expr = union(enum) {
     }
 
     pub fn deinit(self: *Ref) void {
-
         switch (self.*) {
-            .call => |*call| { call.deinit(); },
+            .call => |*call| {
+                call.deinit();
+            },
             else => {},
         }
     }
 
     pub fn write(self: *const Ref, writer: *std.io.Writer) WriteError!void {
-
         switch (self.*) {
             .literal => |lit| {
                 try lit.value.write(writer);
@@ -234,7 +225,6 @@ pub const Expr = union(enum) {
                 _ = try writer.write(")");
             },
             .call => |call| {
-
                 _ = try writer.write("(. ");
 
                 try call.callee.write(writer);
@@ -244,15 +234,14 @@ pub const Expr = union(enum) {
                 const args = call.args;
 
                 for (args.items, 0..) |arg, i| {
-
                     try arg.write(writer);
 
-                    if (i +  1 < args.items.len)  {
+                    if (i + 1 < args.items.len) {
                         _ = try writer.write("  ");
                     }
                 }
                 _ = try writer.write(")");
-            }
+            },
         }
     }
 
@@ -263,11 +252,10 @@ pub const Expr = union(enum) {
     unary: Unary,
     variable: Variable,
     assign: Assign,
-    logical: Logical
+    logical: Logical,
 };
 
 pub const Stmt = union(enum) {
-       
     const Ref = @This();
 
     pub const Expression = struct {
@@ -311,7 +299,6 @@ pub const Stmt = union(enum) {
     };
 
     pub const Loop = struct {
-
         const Self = @This();
 
         condition: *Expr,
@@ -328,7 +315,6 @@ pub const Stmt = union(enum) {
     };
 
     pub const ForLoop = struct {
-
         const Self = @This();
 
         initializer: ?*Stmt,
@@ -358,7 +344,6 @@ pub const Stmt = union(enum) {
     };
 
     pub const Conditional = struct {
-
         const Self = @This();
 
         condition: *Expr,
@@ -383,7 +368,6 @@ pub const Stmt = union(enum) {
     };
 
     pub const Block = struct {
-
         const Self = @This();
 
         statements: std.SegmentedList(*Ref, 4),
@@ -391,17 +375,15 @@ pub const Stmt = union(enum) {
         allocator: std.mem.Allocator,
 
         pub fn write(self: *const Self, writer: *std.io.Writer) !void {
-                
             var it = self.statements.constIterator(0);
 
             while (it.next()) |stmt| {
                 try stmt.*.write(writer);
             }
-
         }
 
         pub fn deinit(self: *Self) void {
-            self.statements.deinit(self.allocator); 
+            self.statements.deinit(self.allocator);
         }
     };
 
@@ -428,12 +410,12 @@ pub const Stmt = union(enum) {
     }
 
     pub fn deinit(self: *Ref) void {
-
         switch (self.*) {
-            .block => |*block| { block.deinit(); },
+            .block => |*block| {
+                block.deinit();
+            },
             else => {},
         }
-
     }
 
     pub fn write(self: *const Ref, writer: *std.io.Writer) WriteError!void {
@@ -444,7 +426,7 @@ pub const Stmt = union(enum) {
             .block => |block| try block.write(writer),
             .conditional => |cond| try cond.write(writer),
             .loop => |loop| try loop.write(writer),
-            .for_loop => |loop| try loop.write(writer)
+            .for_loop => |loop| try loop.write(writer),
         }
     }
 };
@@ -452,7 +434,6 @@ pub const Stmt = union(enum) {
 const StatementList = std.SegmentedList(*Stmt, 16);
 
 pub const Program = struct {
-
     allocator: std.mem.Allocator,
 
     statements: StatementList,
@@ -460,10 +441,9 @@ pub const Program = struct {
     const Self = @This();
 
     pub fn init(allocator: std.mem.Allocator) Program {
-
-        return Self {
+        return Self{
             .allocator = allocator,
-            .statements = StatementList {},
+            .statements = StatementList{},
         };
     }
 
@@ -475,13 +455,11 @@ pub const Program = struct {
     }
 
     pub fn write(self: *const Self, writer: *std.io.Writer) !void {
-
         var it = self.statements.constIterator(0);
 
-        var i : usize = 0;
+        var i: usize = 0;
 
         while (it.next()) |stmt| {
-
             try stmt.*.write(writer);
 
             if (i + 1 < self.statements.len) {

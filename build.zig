@@ -49,11 +49,7 @@ fn addTestsRecursive(
                 const p = b.pathJoin(&.{ root_dir, entry.name });
                 const t = b.addTest(.{
                     .name = entry.name,
-                    .root_module = b.createModule(.{
-                        .root_source_file = b.path(p),
-                        .target = target,
-                        .optimize = optimize
-                    }),
+                    .root_module = b.createModule(.{ .root_source_file = b.path(p), .target = target, .optimize = optimize }),
                 });
                 test_step.dependOn(&b.addRunArtifact(t).step);
             },
@@ -61,7 +57,7 @@ fn addTestsRecursive(
                 if (std.mem.eql(u8, entry.name, "zig-cache") or
                     std.mem.eql(u8, entry.name, "zig-out") or
                     std.mem.eql(u8, entry.name, ".git"))
-                continue;
+                    continue;
 
                 // Recurse by opening the subdir and iterating it.
                 const sub = b.pathJoin(&.{ root_dir, entry.name });

@@ -22,14 +22,7 @@ test "expect scanner to handle basic parsing" {
     var diagnostics = Diagnostics.init(gpa);
     var scanner = Scanner.init(gpa, &diagnostics, "true");
     defer scanner.deinit();
-    const expected = [_]Token{ 
-        .{
-            .type = .TRUE,
-            .lexeme = "true",
-            .line = 0,
-            .offset = 0
-        }
-    };
+    const expected = [_]Token{.{ .type = .TRUE, .lexeme = "true", .line = 0, .offset = 0 }};
     const got = try scanner.scan();
     try checkTokens(&expected, got);
 }
@@ -37,36 +30,24 @@ test "expect scanner to handle basic parsing" {
 test "strings" {
     const gpa = std.testing.allocator;
     var diagnostics = Diagnostics.init(gpa);
-    const code = 
+    const code =
         \\"hola como te va"
     ;
     var scanner = Scanner.init(gpa, &diagnostics, code);
     defer scanner.deinit();
-    const expected = [_]Token{ 
-        .{
-            .type = .STRING,
-            .lexeme = "hola como te va",
-            .line = 0,
-            .offset = 0
-        }
-    };
+    const expected = [_]Token{.{ .type = .STRING, .lexeme = "hola como te va", .line = 0, .offset = 0 }};
     const got = try scanner.scan();
     try checkTokens(&expected, got);
 }
 
 test "scanning floating point" {
     const gpa = std.testing.allocator;
-    
+
     var diagnostics = Diagnostics.init(gpa);
     var scanner = Scanner.init(gpa, &diagnostics, "12345.993");
     defer scanner.deinit();
-    const expected = [_]Token{ 
-        .{
-            .type = .NUMBER,
-            .lexeme = "12345.993",
-            .line = 0,
-            .offset = 0
-        },
+    const expected = [_]Token{
+        .{ .type = .NUMBER, .lexeme = "12345.993", .line = 0, .offset = 0 },
     };
     const got = try scanner.scan();
     try checkTokens(&expected, got);
@@ -74,10 +55,10 @@ test "scanning floating point" {
 
 test "Loops and stuff" {
     const gpa = std.testing.allocator;
-    
+
     var diagnostics = Diagnostics.init(gpa);
 
-    const code = 
+    const code =
         \\ while (a < 10) {
         \\   print a;
         \\ }
@@ -85,7 +66,7 @@ test "Loops and stuff" {
 
     var scanner = Scanner.init(gpa, &diagnostics, code);
     defer scanner.deinit();
-    const expected = [_]TokenType{ 
+    const expected = [_]TokenType{
         .WHILE,
         .LEFT_PAREN,
         .IDENTIFIER,
@@ -108,54 +89,19 @@ test "Loops and stuff" {
 test "scanning numbers and operations" {
     const gpa = std.testing.allocator;
     var diagnostics = Diagnostics.init(gpa);
-    const code = 
+    const code =
         \\(2 + 3 * 5)
     ;
     var scanner = Scanner.init(gpa, &diagnostics, code);
     defer scanner.deinit();
-    const expected = [_]Token{ 
-        .{
-            .type = .LEFT_PAREN,
-            .lexeme = "(",
-            .line = 0,
-            .offset = 0
-        },
-        .{
-            .type = .NUMBER,
-            .lexeme = "2",
-            .line = 0,
-            .offset = 1
-        },
-        .{
-            .type = .PLUS,
-            .lexeme = "+",
-            .line = 0,
-            .offset = 3
-        },
-        .{
-            .type = .NUMBER,
-            .lexeme = "3",
-            .line = 0,
-            .offset = 5
-        },
-        .{
-            .type = .STAR,
-            .lexeme = "*",
-            .line = 0,
-            .offset = 7
-        },
-        .{
-            .type = .NUMBER,
-            .lexeme = "5",
-            .line = 0,
-            .offset = 9
-        },
-        .{
-            .type = .RIGHT_PAREN,
-            .lexeme = ")",
-            .line = 0,
-            .offset = 10
-        },
+    const expected = [_]Token{
+        .{ .type = .LEFT_PAREN, .lexeme = "(", .line = 0, .offset = 0 },
+        .{ .type = .NUMBER, .lexeme = "2", .line = 0, .offset = 1 },
+        .{ .type = .PLUS, .lexeme = "+", .line = 0, .offset = 3 },
+        .{ .type = .NUMBER, .lexeme = "3", .line = 0, .offset = 5 },
+        .{ .type = .STAR, .lexeme = "*", .line = 0, .offset = 7 },
+        .{ .type = .NUMBER, .lexeme = "5", .line = 0, .offset = 9 },
+        .{ .type = .RIGHT_PAREN, .lexeme = ")", .line = 0, .offset = 10 },
     };
     const got = try scanner.scan();
     try checkTokens(&expected, got);
@@ -166,25 +112,10 @@ test "expect handling multiple lines" {
     var diagnostics = Diagnostics.init(gpa);
     var scanner = Scanner.init(gpa, &diagnostics, "true and false");
     defer scanner.deinit();
-    const expected = [_]Token{ 
-        .{
-            .type = .TRUE,
-            .lexeme = "true",
-            .line = 0,
-            .offset = 0
-        },
-        .{
-            .type = .AND,
-            .lexeme = "and",
-            .line = 0,
-            .offset = 5
-        },
-        .{
-            .type = .FALSE,
-            .lexeme = "false",
-            .line = 0,
-            .offset = 9
-        },
+    const expected = [_]Token{
+        .{ .type = .TRUE, .lexeme = "true", .line = 0, .offset = 0 },
+        .{ .type = .AND, .lexeme = "and", .line = 0, .offset = 5 },
+        .{ .type = .FALSE, .lexeme = "false", .line = 0, .offset = 9 },
     };
     const got = try scanner.scan();
     try std.testing.expectEqual(got.len, expected.len);
@@ -196,25 +127,10 @@ test "expect scanner to handle multiple tokens" {
     var diagnostics = Diagnostics.init(gpa);
     var scanner = Scanner.init(gpa, &diagnostics, "true and false");
     defer scanner.deinit();
-    const expected = [_]Token{ 
-        .{
-            .type = .TRUE,
-            .lexeme = "true",
-            .line = 0,
-            .offset = 0
-        },
-        .{
-            .type = .AND,
-            .lexeme = "and",
-            .line = 0,
-            .offset = 5
-        },
-        .{
-            .type = .FALSE,
-            .lexeme = "false",
-            .line = 0,
-            .offset = 9
-        },
+    const expected = [_]Token{
+        .{ .type = .TRUE, .lexeme = "true", .line = 0, .offset = 0 },
+        .{ .type = .AND, .lexeme = "and", .line = 0, .offset = 5 },
+        .{ .type = .FALSE, .lexeme = "false", .line = 0, .offset = 9 },
     };
     const got = try scanner.scan();
     try checkTokens(&expected, got);

@@ -1,4 +1,3 @@
-
 const std = @import("std");
 
 const Ast = @import("ast.zig");
@@ -7,7 +6,6 @@ const Scanner = @import("scanner.zig");
 const Parser = @import("parser.zig");
 
 fn test_parser(expression: []const u8, expected: []const u8) !void {
-
     const gpa = std.testing.allocator;
 
     var diagnostics = Diagnostics.init(gpa);
@@ -22,8 +20,8 @@ fn test_parser(expression: []const u8, expected: []const u8) !void {
 
     const expr = try parser.parse();
 
-    var buffer : [256]u8 = undefined;
-    var writer : std.Io.Writer = .fixed(&buffer);
+    var buffer: [256]u8 = undefined;
+    var writer: std.Io.Writer = .fixed(&buffer);
 
     try expr.write(&writer);
 
@@ -35,7 +33,6 @@ fn test_parser(expression: []const u8, expected: []const u8) !void {
 }
 
 test "parses expressions" {
-
     try test_parser("1 + (2 * 3);", "(+ 1 (group (* 2 3)))");
 
     try test_parser("1 + 2 + 3;", "(+ (+ 1 2) 3)");
@@ -44,18 +41,15 @@ test "parses expressions" {
 }
 
 test "parses statements" {
-
     try test_parser("print 1 + 2;", "(print (+ 1 2))");
 }
 
 test "parses variables" {
-
     try test_parser("var x = 1;", "(define x 1)");
 
     try test_parser("var x = 2 + 3;", "(define x (+ 2 3))");
 }
 
 test "parses assignments" {
-
     try test_parser("var x = 1; x = 2;", "(define x 1)\n(set x 2)");
 }

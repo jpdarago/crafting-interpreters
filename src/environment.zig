@@ -17,7 +17,7 @@ allocator: std.mem.Allocator,
 enclosing: ?*Self,
 
 pub fn init(allocator: std.mem.Allocator, env: ?*Self) Self {
-    return Self {
+    return Self{
         .allocator = allocator,
         .stores = std.heap.ArenaAllocator.init(allocator),
         .values = std.StringHashMap(Ast.LoxValue).init(allocator),

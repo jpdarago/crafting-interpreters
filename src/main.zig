@@ -12,8 +12,8 @@ const Token = Scanner.Token;
 
 const Stdfile = std.fs.File;
 
-const KILOBYTE : usize = 1024;
-const MEGABYTE : usize = 1024 * KILOBYTE;
+const KILOBYTE: usize = 1024;
+const MEGABYTE: usize = 1024 * KILOBYTE;
 
 pub fn main() !void {
     var gpa = std.heap.DebugAllocator(.{}){};
@@ -23,14 +23,14 @@ pub fn main() !void {
     var arena = std.heap.ArenaAllocator.init(allocator);
     defer arena.deinit();
 
-    var stderr_buf : [1024]u8 = undefined;
+    var stderr_buf: [1024]u8 = undefined;
     var stderr_writer = std.fs.File.stderr().writer(&stderr_buf);
     const stderr = &stderr_writer.interface;
 
     var args = try std.process.argsWithAllocator(arena.allocator());
     defer args.deinit();
 
-    var arguments : std.ArrayList([]const u8) = .empty;
+    var arguments: std.ArrayList([]const u8) = .empty;
     defer arguments.deinit(allocator);
 
     while (args.next()) |arg| {
@@ -41,7 +41,7 @@ pub fn main() !void {
 
     for (arguments.items[1..]) |arg| {
         if (std.mem.eql(u8, arg, "--help") or std.mem.eql(u8, arg, "-h")) {
-            var stdout_buf : [1024]u8 = undefined;
+            var stdout_buf: [1024]u8 = undefined;
             var stdout_writer = std.fs.File.stdout().writer(&stdout_buf);
             const stdout = &stdout_writer.interface;
             try stdout.print(
@@ -72,6 +72,6 @@ pub fn main() !void {
             try stderr.print("Usage: {s} [file]\nTry '{s} --help' for more information.\n", .{ program_name, program_name });
             try stderr.flush();
             std.process.exit(64);
-        }
+        },
     };
 }

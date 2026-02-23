@@ -19,14 +19,10 @@ allocator: std.mem.Allocator,
 diagnostics: *Diagnostics,
 
 pub fn init(allocator: std.mem.Allocator, diagnostics: *Diagnostics) Self {
-    return Self {
-        .allocator = allocator,
-        .diagnostics = diagnostics
-    };
+    return Self{ .allocator = allocator, .diagnostics = diagnostics };
 }
 
 pub fn run(self: *Self, code: []const u8) !Ast.LoxValue {
-
     var scanner = Scanner.init(self.allocator, self.diagnostics, code);
     defer scanner.deinit();
 
@@ -42,10 +38,9 @@ pub fn run(self: *Self, code: []const u8) !Ast.LoxValue {
 }
 
 pub fn run_and_print(self: *Self, code: []const u8) !void {
-
     const value = try self.run(code);
 
-    var buffer : [1024]u8 = undefined;
+    var buffer: [1024]u8 = undefined;
 
     var stdout = Stdfile.stdout().writer(&buffer);
 
@@ -59,14 +54,13 @@ pub fn run_prompt(self: *Self) !void {
     const stdin = Stdfile.stdin();
     const stdout = Stdfile.stdout();
 
-    var buffer : [1024]u8 = undefined;
+    var buffer: [1024]u8 = undefined;
     var in = stdin.reader(&buffer);
 
     var line = std.Io.Writer.Allocating.init(self.allocator);
     defer line.deinit();
 
     while (true) {
-
         try stdout.writeAll("> ");
 
         line.clearRetainingCapacity();
@@ -76,7 +70,7 @@ pub fn run_prompt(self: *Self) !void {
         };
         _ = in.interface.toss(1);
 
-         self.run_and_print(line.written()) catch |err| blk: {
+        self.run_and_print(line.written()) catch |err| blk: {
             if (!self.diagnostics.has_errors()) {
                 break :blk err;
             }
@@ -88,10 +82,9 @@ pub fn run_prompt(self: *Self) !void {
     }
 }
 
-
-pub fn run_file(self: *Self, file : []const u8) !void {
+pub fn run_file(self: *Self, file: []const u8) !void {
     const MAX_SIZE_IN_BYTES = 256 * 1024 * 1024;
-    const data = try std.fs.cwd().readFileAlloc(self.allocator, file, MAX_SIZE_IN_BYTES); 
+    const data = try std.fs.cwd().readFileAlloc(self.allocator, file, MAX_SIZE_IN_BYTES);
     defer self.allocator.free(data);
     _ = try self.run(data);
     if (self.diagnostics.has_errors()) {
