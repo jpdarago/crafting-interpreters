@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+
+# Reformat all Zig files.
+
+set -euo pipefail
+
+files=$(git diff --cached --name-only --diff-filter=ACM | grep '\.zig$' || true)
+
+[ -z "$files" ] && exit 0
+
+zig fmt $files
+git add $files
