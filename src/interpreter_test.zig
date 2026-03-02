@@ -19,7 +19,7 @@ fn test_interpreter(expression: []const u8, expected: Ast.LoxValue) !void {
     var parser = Parser.init(gpa, &diagnostics, tokens);
     defer parser.deinit();
 
-    var interpreter = Interpreter.init(gpa, &diagnostics, &parser);
+    var interpreter = try Interpreter.init(gpa, &diagnostics, &parser);
     defer interpreter.deinit();
 
     const value = try interpreter.evaluate();
