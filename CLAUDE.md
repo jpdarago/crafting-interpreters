@@ -6,6 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A tree-walking Lox interpreter written in Zig, following [Crafting Interpreters](https://craftinginterpreters.com/) (currently in chapter 10: Functions, section 10.2.1).
 
+## Toolchain
+
+- **Zig 0.15.1** — provided automatically via [devenv](https://devenv.sh/) / Nix (`devenv.nix`), or install manually
+- **ZLS** — available via devenv at `$ZLS_LOCATION`
+- **Pre-commit hook** — `scripts/git-hooks/pre-commit` runs `zig fmt` on staged `.zig` files
+
 ## Build & Run
 
 ```bash
@@ -16,6 +22,8 @@ zig build run          # start the REPL
 zig build clean        # remove .zig-cache and zig-out
 zig build examples     # run all examples/*.lox files
 ```
+
+There is no way to run a single test file; `zig build test` runs all `*_test.zig` files. You can run a single named test with `zig build test -- --test-filter "test name"`.
 
 ## Architecture
 
@@ -30,12 +38,30 @@ The interpreter is a classic pipeline: source text → scanner → parser → AS
 
 **Entry point** (`main.zig`) — parses CLI args, sets up `DebugAllocator` (leak detection), dispatches to REPL or file execution via `Driver`.
 
+**Supporting modules:**
+- `diagnostics.zig` — error reporting (tracks `had_error`, writes to stderr)
+- `errors.zig` — `ParseError` and `EvalError` error sets
+- `debug.zig` — `dump()` helper for printing AST nodes to stdout
+
+## Code Conventions
+
+- **Self pattern:** all structs use `const Self = @This()` for self-referential types.
+- **Tagged union constructors:** `Expr` and `Stmt` use a comptime `make(value)` method that infers the active union field from the value type.
+- **Formatting:** use `zig fmt`. The pre-commit hook enforces this automatically.
+
 ## Memory Management
 
 - Top-level `DebugAllocator` catches leaks (asserted on exit)
 - `ArenaAllocator` for AST nodes and parser allocations
-- Per-environment `ArenaAllocator` (`stores`) for string values
+- Per-interpreter `ArenaAllocator` (`string_pool`) for concatenated string values
 - `SegmentedList` used instead of `ArrayList` where pointer stability is needed (AST nodes, block statements)
+
+## Testing
+
+Tests live in `*_test.zig` files alongside their modules. Patterns:
+- **Scanner tests** (`scanner_test.zig`) — create `Scanner`, call `scan()`, compare tokens with `checkTokens` helper.
+- **Interpreter tests** (`interpreter_test.zig`) — `test_interpreter(source, expected_value)` runs the full pipeline (scan → parse → evaluate) and asserts the final `LoxValue`.
+- All tests use `std.testing.allocator` (which detects leaks in test mode).
 
 ## Currently Implemented Lox Features
 
@@ -49,15 +75,12 @@ Literals, arithmetic/comparison/equality operators, unary operators, string conc
 
 `examples/*.lox` — small programs demonstrating implemented features. New examples should follow the existing style: a comment on the first line describing the program, then straightforward code using only implemented features.
 
-## Reference Projects
+## Reference Material
 
-`references/` contains git submodules of other Zig projects with scanner/parser implementations for comparison:
-
-- `references/zig` — the Zig compiler (self-hosted). Allocation-free tokenizer, `MultiArrayList` AST.
-- `references/arocc` — Aro C compiler. Closest architecture to ours (tokenizer → parser → tree).
-- `references/bun` — Bun JS/TS runtime. Production recursive descent parser in Zig.
-- `references/zig-lox` — Lox bytecode VM in Zig. Same language, Pratt parsing + bytecode execution.
-
-## Notes
-
-`notes/` is an Obsidian vault with analysis of how each reference project implements scanning, parsing, and AST design. Open the `notes/` folder as a vault in Obsidian to browse.
+- `book/` — the original [Crafting Interpreters](https://github.com/munificent/craftinginterpreters) repo (submodule). Java reference implementation is in `book/jlox/`, C implementation in `book/c/`.
+- `references/` — git submodules of other Zig projects for comparison:
+  - `references/zig` — the Zig compiler (self-hosted). Allocation-free tokenizer, `MultiArrayList` AST.
+  - `references/arocc` — Aro C compiler. Closest architecture to ours (tokenizer → parser → tree).
+  - `references/bun` — Bun JS/TS runtime. Production recursive descent parser in Zig.
+  - `references/zig-lox` — Lox bytecode VM in Zig. Same language, Pratt parsing + bytecode execution.
+- `notes/` — Obsidian vault with analysis of how each reference project implements scanning, parsing, and AST design.
