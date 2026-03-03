@@ -19,3 +19,6 @@
 [submodule "references/go"]
 	path = references/go
 	url = git@github.com:golang/go.git
+[submodule "book"]
+	path = book
+	url = git@github.com:munificent/craftinginterpreters.git
