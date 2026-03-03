@@ -51,6 +51,27 @@ pub fn run_and_print(self: *Self, code: []const u8) !void {
     try stdout.interface.flush();
 }
 
+fn run_line(self: *Self, interpreter: *Interpreter, code: []const u8) !void {
+    var scanner = Scanner.init(self.allocator, self.diagnostics, code);
+    defer scanner.deinit();
+
+    const tokens = try scanner.scan();
+
+    var parser = Parser.init(self.allocator, self.diagnostics, tokens);
+    defer parser.deinit();
+
+    const value = try interpreter.evaluate(&parser);
+
+    var buffer: [1024]u8 = undefined;
+
+    var stdout = Stdfile.stdout().writer(&buffer);
+
+    try value.write(&stdout.interface);
+    _ = try stdout.interface.write("\n");
+
+    try stdout.interface.flush();
+}
+
 pub fn run_prompt(self: *Self) !void {
     const stdin = Stdfile.stdin();
     const stdout = Stdfile.stdout();
@@ -60,6 +81,9 @@ pub fn run_prompt(self: *Self) !void {
 
     var line = std.Io.Writer.Allocating.init(self.allocator);
     defer line.deinit();
+
+    var interpreter = try Interpreter.init(self.allocator, self.diagnostics);
+    defer interpreter.deinit();
 
     while (true) {
         try stdout.writeAll("> ");
@@ -71,15 +95,16 @@ pub fn run_prompt(self: *Self) !void {
         };
         _ = in.interface.toss(1);
 
-        self.run_and_print(line.written()) catch |err| blk: {
+        self.run_line(&interpreter, line.written()) catch {
             if (!self.diagnostics.has_errors()) {
-                break :blk err;
+                return error.UnexpectedError;
             }
-        } catch |err| return err;
+            self.diagnostics.reset();
+        };
     }
 
     if (line.written().len > 0) {
-        try self.run_and_print(line.written());
+        self.run_line(&interpreter, line.written()) catch {};
     }
 }
 

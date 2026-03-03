@@ -32,8 +32,10 @@ pub fn deinit(self: *Self) void {
 }
 
 pub fn define(self: *Self, name: []const u8, value: Values.LoxValue) EvalError!void {
-    self.values.put(name, value) catch {
-        // TODO(jp): Error reporting.
+    const owned_name = self.stores.allocator().dupe(u8, name) catch {
+        return EvalError.InternalFailure;
+    };
+    self.values.put(owned_name, value) catch {
         return EvalError.InternalFailure;
     };
 }

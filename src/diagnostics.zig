@@ -30,6 +30,10 @@ pub fn report(self: *Self, where: []const u8, line: usize, comptime fmt: []const
     self.had_error = true;
 }
 
+pub fn reset(self: *Self) void {
+    self.had_error = false;
+}
+
 pub fn has_errors(self: *const Self) bool {
     return self.had_error;
 }
