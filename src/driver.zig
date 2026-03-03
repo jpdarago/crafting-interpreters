@@ -32,10 +32,10 @@ pub fn run(self: *Self, code: []const u8) !Values.LoxValue {
     var parser = Parser.init(self.allocator, self.diagnostics, tokens);
     defer parser.deinit();
 
-    var interpreter = try Interpreter.init(self.allocator, self.diagnostics, &parser);
+    var interpreter = try Interpreter.init(self.allocator, self.diagnostics);
     defer interpreter.deinit();
 
-    return try interpreter.evaluate();
+    return try interpreter.evaluate(&parser);
 }
 
 pub fn run_and_print(self: *Self, code: []const u8) !void {

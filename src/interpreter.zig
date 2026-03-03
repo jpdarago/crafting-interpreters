@@ -23,13 +23,11 @@ allocator: std.mem.Allocator,
 
 diagnostics: *Diagnostics,
 
-parser: *Parser,
-
 environment: Environment,
 
 string_pool: std.heap.ArenaAllocator,
 
-pub fn init(allocator: std.mem.Allocator, diagnostics: *Diagnostics, parser: *Parser) EvalError!Self {
+pub fn init(allocator: std.mem.Allocator, diagnostics: *Diagnostics) EvalError!Self {
     var environment = Environment.init(allocator, null);
 
     for (Natives.builtins) |native| {
@@ -39,7 +37,7 @@ pub fn init(allocator: std.mem.Allocator, diagnostics: *Diagnostics, parser: *Pa
 
     const pool = std.heap.ArenaAllocator.init(allocator);
 
-    return Self{ .allocator = allocator, .diagnostics = diagnostics, .parser = parser, .environment = environment, .string_pool = pool };
+    return Self{ .allocator = allocator, .diagnostics = diagnostics, .environment = environment, .string_pool = pool };
 }
 
 pub fn deinit(self: *Self) void {
@@ -47,8 +45,8 @@ pub fn deinit(self: *Self) void {
     self.string_pool.deinit();
 }
 
-pub fn evaluate(self: *Self) !Values.LoxValue {
-    var program = try self.parser.parse();
+pub fn evaluate(self: *Self, parser: *Parser) !Values.LoxValue {
+    var program = try parser.parse();
     defer program.deinit();
 
     var result: Values.LoxValue = .nil;

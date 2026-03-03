@@ -20,10 +20,10 @@ fn test_interpreter(expression: []const u8, expected: Values.LoxValue) !void {
     var parser = Parser.init(gpa, &diagnostics, tokens);
     defer parser.deinit();
 
-    var interpreter = try Interpreter.init(gpa, &diagnostics, &parser);
+    var interpreter = try Interpreter.init(gpa, &diagnostics);
     defer interpreter.deinit();
 
-    const value = try interpreter.evaluate();
+    const value = try interpreter.evaluate(&parser);
 
     try std.testing.expect(!diagnostics.has_errors());
 
