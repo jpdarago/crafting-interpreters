@@ -1,14 +1,13 @@
 const std = @import("std");
 
+const Ast = @import("ast.zig");
 const Diagnostics = @import("diagnostics.zig");
 const Driver = @import("driver.zig");
 
-const Scanner = @import("scanner.zig");
-
 const crafting_interpreters = @import("crafting_interpreters");
 
-const TokenType = Scanner.TokenType;
-const Token = Scanner.Token;
+const TokenType = Ast.TokenType;
+const Token = Ast.Token;
 
 const Stdfile = std.fs.File;
 

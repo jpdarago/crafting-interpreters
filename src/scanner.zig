@@ -1,58 +1,10 @@
 const std = @import("std");
 
+const Ast = @import("ast.zig");
 const Diagnostics = @import("diagnostics.zig");
 
-pub const TokenType = enum {
-    // Single-character tokens.
-    LEFT_PAREN,
-    RIGHT_PAREN,
-    LEFT_BRACE,
-    RIGHT_BRACE,
-    COMMA,
-    DOT,
-    MINUS,
-    PLUS,
-    SEMICOLON,
-    SLASH,
-    STAR,
-
-    // One or two character tokens.
-    BANG,
-    BANG_EQUAL,
-    EQUAL,
-    EQUAL_EQUAL,
-    GREATER,
-    GREATER_EQUAL,
-    LESS,
-    LESS_EQUAL,
-
-    // Literals.
-    IDENTIFIER,
-    STRING,
-    NUMBER,
-
-    // Keywords.
-    AND,
-    CLASS,
-    ELSE,
-    FALSE,
-    FUNCTION,
-    FOR,
-    IF,
-    NIL,
-    OR,
-    PRINT,
-    RETURN,
-    SUPER,
-    THIS,
-    TRUE,
-    VAR,
-    WHILE,
-
-    EOF,
-};
-
-pub const Token = struct { type: TokenType, lexeme: []const u8, line: usize, offset: usize };
+const TokenType = Ast.TokenType;
+const Token = Ast.Token;
 
 fn is_alpha(character: ?u8) bool {
     const c = character orelse return false;

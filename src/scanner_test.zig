@@ -1,11 +1,11 @@
 const std = @import("std");
 
+const Ast = @import("ast.zig");
 const Diagnostics = @import("diagnostics.zig");
-
 const Scanner = @import("scanner.zig");
 
-const TokenType = Scanner.TokenType;
-const Token = Scanner.Token;
+const TokenType = Ast.TokenType;
+const Token = Ast.Token;
 
 fn checkTokens(expected: []const Token, got: []const Token) !void {
     try std.testing.expectEqual(got.len, expected.len);

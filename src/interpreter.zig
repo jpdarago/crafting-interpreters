@@ -4,8 +4,6 @@ const Ast = @import("ast.zig");
 
 const Diagnostics = @import("diagnostics.zig");
 
-const Scanner = @import("scanner.zig");
-
 const Parser = @import("parser.zig");
 
 const Environment = @import("environment.zig");
@@ -377,7 +375,7 @@ fn evaluate_expr(self: *Self, expr: *const Ast.Expr, env: *Environment) EvalErro
     return error.InvalidExpression;
 }
 
-fn check_tag(self: *Self, token: Scanner.Token, val: Ast.LoxValue, comptime tags: anytype) EvalError!void {
+fn check_tag(self: *Self, token: Ast.Token, val: Ast.LoxValue, comptime tags: anytype) EvalError!void {
     const tag = std.meta.activeTag(val);
 
     inline for (tags) |t| {
@@ -391,7 +389,7 @@ fn check_tag(self: *Self, token: Scanner.Token, val: Ast.LoxValue, comptime tags
     return error.InvalidExpression;
 }
 
-fn check_number(self: *Self, token: Scanner.Token, lhs: Ast.LoxValue) EvalError!f64 {
+fn check_number(self: *Self, token: Ast.Token, lhs: Ast.LoxValue) EvalError!f64 {
     try self.check_tag(token, lhs, .{.number});
 
     return lhs.number;
@@ -415,14 +413,14 @@ fn is_truthy(val: Ast.LoxValue) bool {
     };
 }
 
-fn check_same_tag(self: *Self, token: Scanner.Token, lhs: Ast.LoxValue, rhs: Ast.LoxValue) EvalError!void {
+fn check_same_tag(self: *Self, token: Ast.Token, lhs: Ast.LoxValue, rhs: Ast.LoxValue) EvalError!void {
     if (@intFromEnum(lhs) != @intFromEnum(rhs)) {
         self.diagnostics.report_error(token.line, "Mismatched types");
         return error.TypeMismatch;
     }
 }
 
-fn are_equal(self: *Self, token: Scanner.Token, lhs: Ast.LoxValue, rhs: Ast.LoxValue) EvalError!bool {
+fn are_equal(self: *Self, token: Ast.Token, lhs: Ast.LoxValue, rhs: Ast.LoxValue) EvalError!bool {
     try self.check_same_tag(token, lhs, rhs);
 
     return switch (lhs) {

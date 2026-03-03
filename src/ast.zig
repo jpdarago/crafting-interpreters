@@ -1,8 +1,58 @@
 const std = @import("std");
 
-const Scanner = @import("scanner.zig");
-
 const Diagnostics = @import("diagnostics.zig");
+
+pub const TokenType = enum {
+    // Single-character tokens.
+    LEFT_PAREN,
+    RIGHT_PAREN,
+    LEFT_BRACE,
+    RIGHT_BRACE,
+    COMMA,
+    DOT,
+    MINUS,
+    PLUS,
+    SEMICOLON,
+    SLASH,
+    STAR,
+
+    // One or two character tokens.
+    BANG,
+    BANG_EQUAL,
+    EQUAL,
+    EQUAL_EQUAL,
+    GREATER,
+    GREATER_EQUAL,
+    LESS,
+    LESS_EQUAL,
+
+    // Literals.
+    IDENTIFIER,
+    STRING,
+    NUMBER,
+
+    // Keywords.
+    AND,
+    CLASS,
+    ELSE,
+    FALSE,
+    FUNCTION,
+    FOR,
+    IF,
+    NIL,
+    OR,
+    PRINT,
+    RETURN,
+    SUPER,
+    THIS,
+    TRUE,
+    VAR,
+    WHILE,
+
+    EOF,
+};
+
+pub const Token = struct { type: TokenType, lexeme: []const u8, line: usize, offset: usize };
 
 const EvalError = @import("errors.zig").EvalError;
 
@@ -16,8 +66,8 @@ pub const LoxFunction = struct {
     const Self = @This();
 
     arity: u8,
-    name: Scanner.Token,
-    params: []Scanner.Token,
+    name: Token,
+    params: []Token,
     body: []const *Stmt,
 
     pub fn call(self: *const Self, diagnostics: *Diagnostics, args: []const LoxValue) EvalError!LoxValue {
@@ -89,7 +139,7 @@ pub const Expr = union(enum) {
 
         left: *Ref,
 
-        operator: Scanner.Token,
+        operator: Token,
 
         right: *Ref,
     };
@@ -99,7 +149,7 @@ pub const Expr = union(enum) {
 
         callee: *Ref,
 
-        paren: Scanner.Token,
+        paren: Token,
 
         args: std.ArrayList(*Expr),
 
@@ -127,7 +177,7 @@ pub const Expr = union(enum) {
     pub const Unary = struct {
         const Self = @This();
 
-        operator: Scanner.Token,
+        operator: Token,
 
         expression: *Ref,
     };
@@ -135,13 +185,13 @@ pub const Expr = union(enum) {
     pub const Variable = struct {
         const Self = @This();
 
-        name: Scanner.Token,
+        name: Token,
     };
 
     pub const Assign = struct {
         const Self = @This();
 
-        name: Scanner.Token,
+        name: Token,
 
         value: *Ref,
     };
@@ -151,7 +201,7 @@ pub const Expr = union(enum) {
 
         left: *Ref,
 
-        operator: Scanner.Token,
+        operator: Token,
 
         right: *Ref,
     };
@@ -283,7 +333,7 @@ pub const Stmt = union(enum) {
     pub const Var = struct {
         const Self = @This();
 
-        name: Scanner.Token,
+        name: Token,
 
         initializer: ?*Expr,
 
@@ -368,9 +418,9 @@ pub const Stmt = union(enum) {
     pub const Function = struct {
         const Self = @This();
 
-        name: Scanner.Token,
+        name: Token,
 
-        params: std.SegmentedList(Scanner.Token, 4),
+        params: std.SegmentedList(Token, 4),
 
         body: std.SegmentedList(*Ref, 4),
 
@@ -392,7 +442,7 @@ pub const Stmt = union(enum) {
             //
             var body_it = self.body.constIterator(0);
             while (body_it.next()) |stmt| {
-                try stmt.write(writer);
+                try stmt.*.write(writer);
                 _ = try writer.write(" ");
             }
 

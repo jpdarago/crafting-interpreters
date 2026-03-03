@@ -2,7 +2,6 @@ const std = @import("std");
 
 const Ast = @import("ast.zig");
 const Diagnostics = @import("diagnostics.zig");
-const Scanner = @import("scanner.zig");
 
 const ParseError = @import("errors.zig").ParseError;
 
@@ -17,7 +16,7 @@ allocator: std.mem.Allocator,
 
 current: usize,
 
-tokens: []const Scanner.Token,
+tokens: []const Ast.Token,
 
 // We use a segmented list to ensure pointer stability.
 nodes: std.SegmentedList(Expr, 64),
@@ -31,7 +30,7 @@ diagnostics: *Diagnostics,
 pub fn init(
     allocator: std.mem.Allocator,
     diagnostics: *Diagnostics,
-    tokens: []const Scanner.Token,
+    tokens: []const Ast.Token,
 ) Self {
     return Self{
         .allocator = allocator,
@@ -127,7 +126,7 @@ fn function(self: *Self, kind: []const u8) !*Stmt {
         _ = try self.consume(.LEFT_PAREN, &buf);
     }
 
-    var parameters = std.SegmentedList(Scanner.Token, 4){};
+    var parameters = std.SegmentedList(Ast.Token, 4){};
 
     if (!self.check(.LEFT_PAREN)) {
         while (true) {
@@ -364,7 +363,7 @@ fn match(self: *Self, comptime args: anytype) bool {
     return false;
 }
 
-fn check(self: *Self, tok: Scanner.TokenType) bool {
+fn check(self: *Self, tok: Ast.TokenType) bool {
     if (self.peek()) |token| {
         return token.type == tok;
     } else {
@@ -376,12 +375,12 @@ fn at_end(self: *Self) bool {
     return self.current == self.tokens.len;
 }
 
-fn peek(self: *Self) ?Scanner.Token {
+fn peek(self: *Self) ?Ast.Token {
     if (self.at_end()) return null;
     return self.tokens[self.current];
 }
 
-fn consume(self: *Self, token: Scanner.TokenType, message: []const u8) ParseError!Scanner.Token {
+fn consume(self: *Self, token: Ast.TokenType, message: []const u8) ParseError!Ast.Token {
     if (self.at_end()) {
         self.diagnostics.report_error(0, message);
 
@@ -399,12 +398,12 @@ fn consume(self: *Self, token: Scanner.TokenType, message: []const u8) ParseErro
     return ParseError.UnexpectedToken;
 }
 
-fn previous(self: *Self) ?Scanner.Token {
+fn previous(self: *Self) ?Ast.Token {
     if (self.current == 0) return null;
     return self.tokens[self.current - 1];
 }
 
-fn advance(self: *Self) ?Scanner.Token {
+fn advance(self: *Self) ?Ast.Token {
     if (!self.at_end()) {
         self.current += 1;
     }
