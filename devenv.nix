@@ -8,6 +8,8 @@
     enable = true;
     version = "0.15.1";
   };
+  
+  languages.python.enable = true;
 
   env.ZLS_LOCATION = "${pkgs.zls}/bin/zls";
 }
