@@ -3,6 +3,7 @@ const std = @import("std");
 const Ast = @import("ast.zig");
 const Diagnostics = @import("diagnostics.zig");
 const EvalError = @import("errors.zig").EvalError;
+const Environment = @import("environment.zig");
 
 const Token = Ast.Token;
 const Stmt = Ast.Stmt;
@@ -18,6 +19,7 @@ pub const LoxFunction = struct {
     name: Token,
     params: []Token,
     body: []const *Stmt,
+    closure: *Environment,
 };
 
 pub const LoxCallable = union(enum) {

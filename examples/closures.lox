@@ -1,0 +1,37 @@
+// Closures: functions that capture their enclosing environment.
+
+// A counter using closure over a mutable variable.
+fun counter() {
+  var n = 0;
+  fun inc() {
+    n = n + 1;
+    return n;
+  }
+  return inc;
+}
+
+var c = counter();
+print c();
+print c();
+print c();
+
+// Two independent counters with separate state.
+var a = counter();
+var b = counter();
+print a();
+print b();
+print a();
+print b();
+
+// A closure that captures a parameter.
+fun multiplier(factor) {
+  fun apply(x) {
+    return factor * x;
+  }
+  return apply;
+}
+
+var double = multiplier(2);
+var triple = multiplier(3);
+print double(5);
+print triple(5);

@@ -28,27 +28,35 @@ allocator: std.mem.Allocator,
 
 diagnostics: *Diagnostics,
 
-environment: Environment,
+environment: *Environment,
 
 string_pool: std.heap.ArenaAllocator,
 
-globals: Environment,
+env_pool: std.heap.ArenaAllocator,
+
+globals: *Environment,
 
 pub fn init(allocator: std.mem.Allocator, diagnostics: *Diagnostics) EvalError!Self {
-    var environment = Environment.init(allocator, null);
+
+    const string_pool = std.heap.ArenaAllocator.init(allocator);
+
+    const env_pool = std.heap.ArenaAllocator.init(allocator);
+
+    var environment = allocator.create(Environment) catch return EvalError.InternalFailure;
+    environment.* = Environment.init(allocator, null);
 
     for (Natives.builtins) |native| {
         const callable = Values.LoxValue{ .callable = .{ .native = native } };
         _ = try environment.define(native.name, callable);
     }
 
-    const pool = std.heap.ArenaAllocator.init(allocator);
-
-    return Self{ .allocator = allocator, .diagnostics = diagnostics, .environment = environment, .string_pool = pool, .globals = environment };
+    return Self{ .allocator = allocator, .diagnostics = diagnostics, .environment = environment, .string_pool = string_pool, .env_pool = env_pool, .globals = environment };
 }
 
 pub fn deinit(self: *Self) void {
     self.environment.deinit();
+    self.allocator.destroy(self.environment);
+    self.env_pool.deinit();
     self.string_pool.deinit();
 }
 
@@ -61,7 +69,7 @@ pub fn evaluate(self: *Self, parser: *Parser) !Values.LoxValue {
     var it = program.statements.constIterator(0);
 
     while (it.next()) |stmt| {
-        const stmt_result = try self.evaluate_statement(stmt.*, &self.environment);
+        const stmt_result = try self.evaluate_statement(stmt.*, self.environment);
         result = switch (stmt_result) {
             .value => |v| v,
             .ret => |v| v,
@@ -195,6 +203,7 @@ fn evaluate_statement(self: *Self, stmt: *const Ast.Stmt, env: *Environment) Eva
                 .body = func.body.items,
                 .arity = @intCast(func.params.items.len),
                 .params = func.params.items,
+                .closure = env
             };
 
             try self.environment.define(func.name.lexeme, Values.LoxValue{ .callable = .{ .function = function } });
@@ -205,13 +214,13 @@ fn evaluate_statement(self: *Self, stmt: *const Ast.Stmt, env: *Environment) Eva
 }
 
 fn evaluate_block(self: *Self, block: Ast.Stmt.Block, env: *Environment) EvalError!StmtResult {
-    var new_env = Environment.init(self.allocator, env);
-    defer new_env.deinit();
+
+    const new_env = try self.create_env(env);
 
     var it = block.statements.constIterator(0);
 
     while (it.next()) |stmt| {
-        const result = try self.evaluate_statement(stmt.*, &new_env);
+        const result = try self.evaluate_statement(stmt.*, new_env);
         if (result == .ret) return result;
     }
 
@@ -253,15 +262,14 @@ fn evaluate_expr(self: *Self, expr: *const Ast.Expr, env: *Environment) EvalErro
                 .native => |native| native.call(self.diagnostics, args.items),
                 .function => |func| {
 
-                    var new_env = Environment.init(self.allocator, &self.globals);
-                    defer new_env.deinit();
+                    var new_env = try self.create_env(func.closure);
 
                     for (func.params, 0..) |param, i| {
                         try new_env.define(param.lexeme, args.items[i]);
                     }
 
                     for (func.body) |stmt| {
-                        const result = try self.evaluate_statement(stmt, &new_env);
+                        const result = try self.evaluate_statement(stmt, new_env);
                         if (result == .ret) return result.ret;
                     }
 
@@ -460,6 +468,14 @@ fn are_equal(self: *Self, token: Ast.Token, lhs: Values.LoxValue, rhs: Values.Lo
         .callable => false,
         .nil => true,
     };
+}
+
+// TODO(jp): This uses an arena that grows unbounded - implement reference counting.
+fn create_env(self: *Self, parent: ?*Environment) EvalError!*Environment {
+    var allocator = self.env_pool.allocator();
+    const result = allocator.create(Environment) catch return EvalError.InternalFailure;
+    result.* = Environment.init(allocator, parent);
+    return result;
 }
 
 // TODO(jp): This needs a garbage collector of some sort.

@@ -129,7 +129,7 @@ fn function(self: *Self, kind: []const u8) !*Stmt {
 
     var parameters: std.ArrayList(Ast.Token) = .empty;
 
-    if (!self.check(.LEFT_PAREN)) {
+    if (!self.check(.RIGHT_PAREN)) {
         while (true) {
             if (parameters.items.len >= 255) {
                 self.diagnostics.report_error(self.peek().?.line, "Too many parameters (> 255).");
@@ -143,9 +143,10 @@ fn function(self: *Self, kind: []const u8) !*Stmt {
                 break;
             }
         }
+        
     }
 
-    _ = try self.consume(.RIGHT_PAREN, "Expected ')' after parameters.");
+    _ = try self.consume(.RIGHT_PAREN, "Expected ')'");
     _ = try self.consume(.LEFT_BRACE, "Expected '{' before function body.");
     const body = try self.statements_for_body();
     return self.make_statement(Stmt.Function{
