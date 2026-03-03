@@ -1,0 +1,24 @@
+// Function calls with side effects (no return values yet).
+fun greet(name) {
+  print "Hello, " + name + "!";
+}
+
+greet("Alice");
+greet("Bob");
+
+fun add(a, b) {
+  print a + b;
+}
+
+add(2, 3);
+add(10, 20);
+
+fun countdown(n) {
+  while (n > 0) {
+    print n;
+    n = n - 1;
+  }
+  print "Go!";
+}
+
+countdown(3);

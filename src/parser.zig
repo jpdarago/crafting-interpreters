@@ -127,11 +127,11 @@ fn function(self: *Self, kind: []const u8) !*Stmt {
         _ = try self.consume(.LEFT_PAREN, &buf);
     }
 
-    var parameters = std.SegmentedList(Ast.Token, 4){};
+    var parameters: std.ArrayList(Ast.Token) = .empty;
 
     if (!self.check(.LEFT_PAREN)) {
         while (true) {
-            if (parameters.len >= 255) {
+            if (parameters.items.len >= 255) {
                 self.diagnostics.report_error(self.peek().?.line, "Too many parameters (> 255).");
 
                 return ParseError.MaximumArgumentsExceeded;
@@ -146,12 +146,13 @@ fn function(self: *Self, kind: []const u8) !*Stmt {
     }
 
     _ = try self.consume(.RIGHT_PAREN, "Expected ')' after parameters.");
-    const body = try self.statements_for_block();
-    return self.make_statement(Stmt.Function {
+    _ = try self.consume(.LEFT_BRACE, "Expected '{' before function body.");
+    const body = try self.statements_for_body();
+    return self.make_statement(Stmt.Function{
         .name = name,
         .body = body,
         .allocator = self.allocator,
-        .params = parameters
+        .params = parameters,
     });
 }
 
@@ -271,6 +272,20 @@ fn if_statement(self: *Self) ParseError!*Stmt {
     const else_branch: ?*Stmt = if (self.match(.{.ELSE})) try self.statement() else null;
 
     return self.make_statement(Stmt.Conditional{ .condition = cond, .if_branch = if_branch, .else_branch = else_branch });
+}
+
+fn statements_for_body(self: *Self) ParseError!std.ArrayList(*Stmt) {
+    var statements: std.ArrayList(*Stmt) = .empty;
+
+    while (!self.check(.RIGHT_BRACE) and !self.at_end()) {
+        const stmt = try self.declaration();
+
+        try statements.append(self.allocator, stmt);
+    }
+
+    _ = try self.consume(.RIGHT_BRACE, "Expected '}' after block.");
+
+    return statements;
 }
 
 fn statements_for_block(self: *Self) ParseError!std.SegmentedList(*Stmt, 4) {

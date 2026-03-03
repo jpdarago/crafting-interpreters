@@ -27,6 +27,8 @@ environment: Environment,
 
 string_pool: std.heap.ArenaAllocator,
 
+globals: Environment,
+
 pub fn init(allocator: std.mem.Allocator, diagnostics: *Diagnostics) EvalError!Self {
     var environment = Environment.init(allocator, null);
 
@@ -37,7 +39,7 @@ pub fn init(allocator: std.mem.Allocator, diagnostics: *Diagnostics) EvalError!S
 
     const pool = std.heap.ArenaAllocator.init(allocator);
 
-    return Self{ .allocator = allocator, .diagnostics = diagnostics, .environment = environment, .string_pool = pool };
+    return Self{ .allocator = allocator, .diagnostics = diagnostics, .environment = environment, .string_pool = pool, .globals = environment };
 }
 
 pub fn deinit(self: *Self) void {
@@ -167,9 +169,19 @@ fn evaluate_statement(self: *Self, stmt: *const Ast.Stmt, env: *Environment) Eva
 
             return .nil;
         },
-        .function => |_| {
-            // Pass.
-            @panic("Not implemented");
+        .function => |func| {
+
+            const function = Values.LoxFunction{
+                .name = func.name,
+                .body = func.body.items,
+                .arity = @intCast(func.params.items.len),
+                .params = func.params.items,
+            };
+
+            try self.environment.define(func.name.lexeme, Values.LoxValue{ .callable = .{ .function = function }});
+
+            return .nil;
+
         }
     }
 }
@@ -218,7 +230,21 @@ fn evaluate_expr(self: *Self, expr: *const Ast.Expr, env: *Environment) EvalErro
 
             return switch (callee) {
                 .native => |native| native.call(self.diagnostics, args.items),
-                .function => |_| @panic("Not implemented"),
+                .function => |func| {
+
+                    var new_env = Environment.init(self.allocator, &self.globals);
+                    defer new_env.deinit();
+
+                    for (func.params, 0..) |param, i| {
+                        try new_env.define(param.lexeme, args.items[i]);
+                    }
+
+                    for (func.body) |stmt| {
+                        _ = try self.evaluate_statement(stmt, &new_env);
+                    }
+
+                    return .nil;
+                }
             };
         },
         .binary => |bin| {

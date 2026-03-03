@@ -352,9 +352,9 @@ pub const Stmt = union(enum) {
 
         name: Token,
 
-        params: std.SegmentedList(Token, 4),
+        params: std.ArrayList(Token),
 
-        body: std.SegmentedList(*Ref, 4),
+        body: std.ArrayList(*Ref),
 
         allocator: std.mem.Allocator,
 
@@ -365,16 +365,14 @@ pub const Stmt = union(enum) {
 
             _ = try writer.write("(");
 
-            var param_it = self.params.constIterator(0);
-            while (param_it.next()) |param| {
+            for (self.params.items) |param| {
                 _ = try writer.write(param.lexeme);
                 _ = try writer.write(" ");
             }
             writer.undo(1); // Remove trailing space.
-            //
-            var body_it = self.body.constIterator(0);
-            while (body_it.next()) |stmt| {
-                try stmt.*.write(writer);
+
+            for (self.body.items) |stmt| {
+                try stmt.write(writer);
                 _ = try writer.write(" ");
             }
 
