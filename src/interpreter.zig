@@ -9,6 +9,8 @@ const Parser = @import("parser.zig");
 
 const Environment = @import("environment.zig");
 
+const Natives = @import("natives.zig");
+
 const Errors = @import("errors.zig");
 
 const EvalError = Errors.EvalError;
@@ -27,36 +29,13 @@ environment: Environment,
 
 string_pool: std.heap.ArenaAllocator,
 
-fn native_clock_gettime(_: *Diagnostics, _: []const Values.LoxValue) EvalError!Values.LoxValue {
-    return Values.LoxValue{
-        .number = @floatFromInt(std.time.microTimestamp()),
-    };
-}
-
-fn native_strlen(diagnostics: *Diagnostics, args: []const Values.LoxValue) EvalError!Values.LoxValue {
-
-    const val = args[0];
-
-    if (val != .string) {
-        diagnostics.report_error(0, "strlen expects a string argument");
-        return EvalError.InvalidArguments;
-    }
-
-    return Values.LoxValue{
-        .number = @floatFromInt(val.string.len)
-    };
-}
-
 pub fn init(allocator: std.mem.Allocator, diagnostics: *Diagnostics, parser: *Parser) EvalError!Self {
     var environment = Environment.init(allocator, null);
 
-    const clock_callable = Values.LoxValue{ .callable = Values.LoxCallable{ .native = Values.NativeFunction{ .arity = 0, .name = "gettime", .call = native_clock_gettime } } };
-
-    _ = try environment.define("clock", clock_callable);
-
-    const strlen_callable = Values.LoxValue{ .callable = Values.LoxCallable{ .native = Values.NativeFunction{ .arity = 1, .name = "gettime", .call = native_strlen } } };
-
-    _ = try environment.define("strlen", strlen_callable);
+    for (Natives.builtins) |native| {
+        const callable = Values.LoxValue{ .callable = .{ .native = native } };
+        _ = try environment.define(native.name, callable);
+    }
 
     const pool = std.heap.ArenaAllocator.init(allocator);
 
