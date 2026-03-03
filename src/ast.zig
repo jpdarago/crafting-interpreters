@@ -280,6 +280,25 @@ pub const Stmt = union(enum) {
         }
     };
 
+    pub const Return = struct {
+        
+        const Self = @This();
+
+        keyword: Token,
+
+        expression: ?*Expr,
+
+        pub fn write(self: *const Self, writer: *std.io.Writer) WriteError!void {
+            _ = try writer.write("(return ");
+            if (self.expression) |expr| {
+                try expr.write(writer);
+            } else {
+                _ = try writer.write("nil");
+            }
+            _ = try writer.write(")");
+        }
+    };
+
     pub const Loop = struct {
         const Self = @This();
 
@@ -407,6 +426,7 @@ pub const Stmt = union(enum) {
 
     expression: Expression,
     print: Print,
+    ret: Return,
     variable: Var,
     block: Block,
     conditional: Conditional,
@@ -444,6 +464,7 @@ pub const Stmt = union(enum) {
         switch (self.*) {
             .expression => |expr| try expr.write(writer),
             .print => |expr| try expr.write(writer),
+            .ret => |ret| try ret.write(writer),
             .variable => |variable| try variable.write(writer),
             .block => |block| try block.write(writer),
             .conditional => |cond| try cond.write(writer),

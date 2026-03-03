@@ -211,6 +211,10 @@ fn statement(self: *Self) !*Stmt {
         return self.print_statement();
     }
 
+    if (self.match(.{.RETURN})) {
+        return self.return_statement();
+    }
+
     if (self.match(.{.LEFT_BRACE})) {
         return self.make_statement(Stmt.Block {
             .statements = try self.statements_for_block(),
@@ -219,6 +223,23 @@ fn statement(self: *Self) !*Stmt {
     }
 
     return self.expression_statement();
+}
+
+fn return_statement(self: *Self) !*Stmt {
+
+    const keyword = self.previous().?;
+    var expr : ?*Expr = null;
+
+    if (!self.check(.SEMICOLON)) {
+        expr = try self.expression();
+    }
+
+    _ = try self.consume(.SEMICOLON, "Expected ';' after value");
+
+    return self.make_statement(Stmt.Return{ 
+        .keyword = keyword,
+        .expression = expr 
+    });
 }
 
 fn for_statement(self: *Self) ParseError!*Stmt {

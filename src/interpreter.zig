@@ -15,6 +15,11 @@ const Errors = @import("errors.zig");
 
 const EvalError = Errors.EvalError;
 
+const StmtResult = union(enum) {
+    value: Values.LoxValue,
+    ret: Values.LoxValue,
+};
+
 const Stdfile = std.fs.File;
 
 const Self = @This();
@@ -56,16 +61,20 @@ pub fn evaluate(self: *Self, parser: *Parser) !Values.LoxValue {
     var it = program.statements.constIterator(0);
 
     while (it.next()) |stmt| {
-        result = try self.evaluate_statement(stmt.*, &self.environment);
+        const stmt_result = try self.evaluate_statement(stmt.*, &self.environment);
+        result = switch (stmt_result) {
+            .value => |v| v,
+            .ret => |v| v,
+        };
     }
 
     return result;
 }
 
-fn evaluate_statement(self: *Self, stmt: *const Ast.Stmt, env: *Environment) EvalError!Values.LoxValue {
+fn evaluate_statement(self: *Self, stmt: *const Ast.Stmt, env: *Environment) EvalError!StmtResult {
     switch (stmt.*) {
         .expression => |expr| {
-            return try self.evaluate_expr(expr.expression, env);
+            return .{ .value = try self.evaluate_expr(expr.expression, env) };
         },
         .variable => |variable| {
             var val: Values.LoxValue = .nil;
@@ -80,7 +89,7 @@ fn evaluate_statement(self: *Self, stmt: *const Ast.Stmt, env: *Environment) Eva
                 return EvalError.InternalFailure;
             };
 
-            return .nil;
+            return .{ .value = .nil };
         },
         .print => |print| {
             var value = try self.evaluate_expr(print.expression, env);
@@ -113,12 +122,19 @@ fn evaluate_statement(self: *Self, stmt: *const Ast.Stmt, env: *Environment) Eva
                 return error.InternalFailure;
             };
 
-            return .nil;
+            return .{ .value = .nil };
+        },
+        .ret => |ret| {
+            var val: Values.LoxValue = .nil;
+
+            if (ret.expression) |expr| {
+                val = try self.evaluate_expr(expr, env);
+            }
+
+            return .{ .ret = val };
         },
         .block => |block| {
-            try self.evaluate_block(block, env);
-
-            return .nil;
+            return self.evaluate_block(block, env);
         },
         .loop => |loop| {
             while (true) {
@@ -128,14 +144,16 @@ fn evaluate_statement(self: *Self, stmt: *const Ast.Stmt, env: *Environment) Eva
                     break;
                 }
 
-                _ = try self.evaluate_statement(loop.body, env);
+                const result = try self.evaluate_statement(loop.body, env);
+                if (result == .ret) return result;
             }
 
-            return .nil;
+            return .{ .value = .nil };
         },
         .for_loop => |loop| {
             if (loop.initializer) |initializer| {
-                _ = try self.evaluate_statement(initializer, env);
+                const result = try self.evaluate_statement(initializer, env);
+                if (result == .ret) return result;
             }
 
             while (true) {
@@ -149,14 +167,15 @@ fn evaluate_statement(self: *Self, stmt: *const Ast.Stmt, env: *Environment) Eva
                     break;
                 }
 
-                _ = try self.evaluate_statement(loop.body, env);
+                const result = try self.evaluate_statement(loop.body, env);
+                if (result == .ret) return result;
 
                 if (loop.increment) |increment| {
                     _ = try self.evaluate_expr(increment, env);
                 }
             }
 
-            return .nil;
+            return .{ .value = .nil };
         },
         .conditional => |conditional| {
             const cond = try self.evaluate_expr(conditional.condition, env);
@@ -167,7 +186,7 @@ fn evaluate_statement(self: *Self, stmt: *const Ast.Stmt, env: *Environment) Eva
                 return self.evaluate_statement(else_branch, env);
             }
 
-            return .nil;
+            return .{ .value = .nil };
         },
         .function => |func| {
 
@@ -178,23 +197,25 @@ fn evaluate_statement(self: *Self, stmt: *const Ast.Stmt, env: *Environment) Eva
                 .params = func.params.items,
             };
 
-            try self.environment.define(func.name.lexeme, Values.LoxValue{ .callable = .{ .function = function }});
+            try self.environment.define(func.name.lexeme, Values.LoxValue{ .callable = .{ .function = function } });
 
-            return .nil;
-
-        }
+            return .{ .value = .nil };
+        },
     }
 }
 
-fn evaluate_block(self: *Self, block: Ast.Stmt.Block, env: *Environment) EvalError!void {
+fn evaluate_block(self: *Self, block: Ast.Stmt.Block, env: *Environment) EvalError!StmtResult {
     var new_env = Environment.init(self.allocator, env);
     defer new_env.deinit();
 
     var it = block.statements.constIterator(0);
 
     while (it.next()) |stmt| {
-        _ = try self.evaluate_statement(stmt.*, &new_env);
+        const result = try self.evaluate_statement(stmt.*, &new_env);
+        if (result == .ret) return result;
     }
+
+    return .{ .value = .nil };
 }
 
 fn evaluate_expr(self: *Self, expr: *const Ast.Expr, env: *Environment) EvalError!Values.LoxValue {
@@ -240,7 +261,8 @@ fn evaluate_expr(self: *Self, expr: *const Ast.Expr, env: *Environment) EvalErro
                     }
 
                     for (func.body) |stmt| {
-                        _ = try self.evaluate_statement(stmt, &new_env);
+                        const result = try self.evaluate_statement(stmt, &new_env);
+                        if (result == .ret) return result.ret;
                     }
 
                     return .nil;
