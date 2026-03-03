@@ -62,14 +62,16 @@ fn run_line(self: *Self, interpreter: *Interpreter, code: []const u8) !void {
 
     const value = try interpreter.evaluate(&parser);
 
-    var buffer: [1024]u8 = undefined;
+    if (value != .nil) {
+        var buffer: [1024]u8 = undefined;
 
-    var stdout = Stdfile.stdout().writer(&buffer);
+        var stdout = Stdfile.stdout().writer(&buffer);
 
-    try value.write(&stdout.interface);
-    _ = try stdout.interface.write("\n");
+        try value.write(&stdout.interface);
+        _ = try stdout.interface.write("\n");
 
-    try stdout.interface.flush();
+        try stdout.interface.flush();
+    }
 }
 
 pub fn run_prompt(self: *Self) !void {
