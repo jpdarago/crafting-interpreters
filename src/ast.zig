@@ -2,6 +2,8 @@ const std = @import("std");
 
 const Diagnostics = @import("diagnostics.zig");
 
+const EvalError = @import("errors.zig").EvalError;
+
 pub const TokenType = enum {
     // Single-character tokens.
     LEFT_PAREN,
@@ -54,29 +56,17 @@ pub const TokenType = enum {
 
 pub const Token = struct { type: TokenType, lexeme: []const u8, line: usize, offset: usize };
 
-const EvalError = @import("errors.zig").EvalError;
-
 pub const NativeFunction = struct {
     arity: u8,
-    call: *const fn (args: []const LoxValue) EvalError!LoxValue,
+    call: *const fn (*Diagnostics, []const LoxValue) EvalError!LoxValue,
     name: []const u8,
 };
 
 pub const LoxFunction = struct {
-    const Self = @This();
-
     arity: u8,
     name: Token,
     params: []Token,
     body: []const *Stmt,
-
-    pub fn call(self: *const Self, diagnostics: *Diagnostics, args: []const LoxValue) EvalError!LoxValue {
-        _ = self;
-        _ = diagnostics;
-        _ = args;
-
-        std.debug.panic("TODO: Not implemented", .{});
-    }
 };
 
 pub const LoxCallable = union(enum) {
@@ -84,13 +74,6 @@ pub const LoxCallable = union(enum) {
 
     native: NativeFunction,
     function: LoxFunction,
-
-    pub fn call(self: *const Self, diagnostics: *Diagnostics, args: []const LoxValue) EvalError!LoxValue {
-        return switch (self.*) {
-            .native => |native| native.call(args),
-            .function => |func| func.call(diagnostics, args),
-        };
-    }
 
     pub fn arity(self: *const Self) u8 {
         return switch (self.*) {

@@ -26,17 +26,18 @@ environment: Environment,
 
 string_pool: std.heap.ArenaAllocator,
 
-fn native_clock_gettime(_: []const Ast.LoxValue) EvalError!Ast.LoxValue {
+fn native_clock_gettime(_: *Diagnostics, _: []const Ast.LoxValue) EvalError!Ast.LoxValue {
     return Ast.LoxValue{
         .number = @floatFromInt(std.time.microTimestamp()),
     };
 }
 
-fn native_strlen(args: []const Ast.LoxValue) EvalError!Ast.LoxValue {
+fn native_strlen(diagnostics: *Diagnostics, args: []const Ast.LoxValue) EvalError!Ast.LoxValue {
 
     const val = args[0];
 
     if (val != .string) {
+        diagnostics.report_error(0, "strlen expects a string argument");
         return EvalError.InvalidArguments;
     }
 
@@ -237,7 +238,10 @@ fn evaluate_expr(self: *Self, expr: *const Ast.Expr, env: *Environment) EvalErro
                 args.appendAssumeCapacity(try self.evaluate_expr(arg, env));
             }
 
-            return try callee.call(self.diagnostics, args.items);
+            return switch (callee) {
+                .native => |native| native.call(self.diagnostics, args.items),
+                .function => |_| @panic("Not implemented"),
+            };
         },
         .binary => |bin| {
             const lhs = try self.evaluate_expr(bin.left, env);
