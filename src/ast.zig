@@ -352,8 +352,6 @@ pub const Stmt = union(enum) {
 
         else_branch: ?*Stmt,
 
-        allocator: std.mem.Allocator,
-
         pub fn write(self: *const Self, writer: *std.io.Writer) WriteError!void {
             _ = try writer.write("(if ");
             try self.condition.write(writer);
@@ -364,6 +362,46 @@ pub const Stmt = union(enum) {
                 try else_branch.write(writer);
             }
             _ = try writer.write(")");
+        }
+    };
+
+    pub const Function = struct {
+        const Self = @This();
+
+        name: Scanner.Token,
+
+        params: std.SegmentedList(*Scanner.Token, 4),
+
+        body: std.SegmentedList(*Ref, 4),
+
+        allocator: std.mem.Allocator,
+
+        pub fn write(self: *const Self, writer: *std.io.Writer) !void {
+            _ = try writer.write("(defn ");
+
+            _ = try writer.write(self.name.lexeme);
+
+            _ = try writer.write("(");
+
+            var param_it = self.params.constIterator(0);
+            while (param_it.next()) |param| {
+                _ = try writer.write(param.lexeme);
+                _ = try writer.write(" ");
+            }
+            writer.undo(1); // Remove trailing space.
+            //
+            var body_it = self.body.constIterator(0);
+            while (body_it.next()) |stmt| {
+                try stmt.write(writer);
+                _ = try writer.write(" ");
+            }
+
+            _ = try writer.write(")");
+        }
+
+        pub fn deinit(self: *Self) void {
+            self.params.deinit(self.allocator);
+            self.body.deinit(self.allocator);
         }
     };
 
@@ -394,6 +432,7 @@ pub const Stmt = union(enum) {
     conditional: Conditional,
     loop: Loop,
     for_loop: ForLoop,
+    function: Function,
 
     pub fn make(value: anytype) Ref {
         const T = @TypeOf(value);
@@ -414,6 +453,9 @@ pub const Stmt = union(enum) {
             .block => |*block| {
                 block.deinit();
             },
+            .function => |*func| {
+                func.deinit();
+            },
             else => {},
         }
     }
@@ -427,6 +469,7 @@ pub const Stmt = union(enum) {
             .conditional => |cond| try cond.write(writer),
             .loop => |loop| try loop.write(writer),
             .for_loop => |loop| try loop.write(writer),
+            .function => |func| try func.write(writer),
         }
     }
 };

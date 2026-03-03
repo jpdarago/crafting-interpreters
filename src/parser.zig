@@ -92,6 +92,10 @@ fn make_statement(self: *Self, node: anytype) !*Stmt {
 }
 
 fn declaration(self: *Self) !*Stmt {
+    if (self.match(.{.FUNCTION})) {
+        return self.function("function");
+    }
+
     if (self.match(.{.VAR})) {
         return self.var_declaration();
     }
@@ -102,6 +106,42 @@ fn declaration(self: *Self) !*Stmt {
     };
 
     return stmt;
+}
+
+fn function(self: *Self, kind: []const u8) !*Stmt {
+    var buf: [256]u8 = undefined;
+
+    const name = blk: {
+        std.fmt.bufPrint(&buf, "Expected {} name.", .{kind});
+
+        break :blk try self.consume(.IDENTIFIER, buf);
+    };
+
+    {
+        std.fmt.bufPrint(&buf, "Expected '(' after {} name.", .{kind});
+
+        try self.consume(.LEFT_PAREN, buf);
+    }
+
+    const parameters = std.SegmentedList(*Stmt, 4){};
+
+    if (!self.check(.LEFT_PAREN)) {
+        while (true) {
+            if (parameters.len >= 255) {
+                self.report_error(self.peek().?, "Too many parameters (> 255).");
+
+                return ParseError.MaximumArgumentsExceeded;
+            }
+
+            parameters.append(self.allocator, try self.consume(.IDENTIFIER, "Expected parameter name."));
+
+            if (!self.match(.{.COMMA})) {
+                break;
+            }
+        }
+    }
+
+    self.consume(.RIGHT_PAREN, "Expected ')' after parameters.");
 }
 
 fn var_declaration(self: *Self) !*Stmt {

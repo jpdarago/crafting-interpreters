@@ -28,8 +28,19 @@ environment: Environment,
 
 string_pool: std.heap.ArenaAllocator,
 
-pub fn init(allocator: std.mem.Allocator, diagnostics: *Diagnostics, parser: *Parser) Self {
-    const environment = Environment.init(allocator, null);
+fn clock_gettime(_: []const Ast.LoxValue) EvalError!Ast.LoxValue {
+    return Ast.LoxValue{
+        .number = @floatFromInt(std.time.microTimestamp()),
+    };
+}
+
+pub fn init(allocator: std.mem.Allocator, diagnostics: *Diagnostics, parser: *Parser) EvalError!Self {
+    var environment = Environment.init(allocator, null);
+
+    const callable = Ast.LoxValue{ .callable = Ast.LoxCallable{ .native = Ast.NativeFunction{ .arity = 0, .name = "gettime", .call = clock_gettime } } };
+
+    _ = try environment.define("clock", callable);
+
     const pool = std.heap.ArenaAllocator.init(allocator);
 
     return Self{ .allocator = allocator, .diagnostics = diagnostics, .parser = parser, .environment = environment, .string_pool = pool };
