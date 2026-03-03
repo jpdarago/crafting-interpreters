@@ -1,6 +1,7 @@
 const std = @import("std");
 
 const Ast = @import("ast.zig");
+const Values = @import("values.zig");
 
 const Errors = @import("errors.zig");
 
@@ -8,7 +9,7 @@ const EvalError = Errors.EvalError;
 
 const Self = @This();
 
-values: std.StringHashMap(Ast.LoxValue),
+values: std.StringHashMap(Values.LoxValue),
 
 stores: std.heap.ArenaAllocator,
 
@@ -20,7 +21,7 @@ pub fn init(allocator: std.mem.Allocator, env: ?*Self) Self {
     return Self{
         .allocator = allocator,
         .stores = std.heap.ArenaAllocator.init(allocator),
-        .values = std.StringHashMap(Ast.LoxValue).init(allocator),
+        .values = std.StringHashMap(Values.LoxValue).init(allocator),
         .enclosing = env,
     };
 }
@@ -30,14 +31,14 @@ pub fn deinit(self: *Self) void {
     self.values.deinit();
 }
 
-pub fn define(self: *Self, name: []const u8, value: Ast.LoxValue) EvalError!void {
+pub fn define(self: *Self, name: []const u8, value: Values.LoxValue) EvalError!void {
     self.values.put(name, value) catch {
         // TODO(jp): Error reporting.
         return EvalError.InternalFailure;
     };
 }
 
-pub fn assign(self: *Self, name: []const u8, value: Ast.LoxValue) EvalError!void {
+pub fn assign(self: *Self, name: []const u8, value: Values.LoxValue) EvalError!void {
     if (self.values.getEntry(name)) |entry| {
         entry.value_ptr.* = value;
         return;
@@ -49,7 +50,7 @@ pub fn assign(self: *Self, name: []const u8, value: Ast.LoxValue) EvalError!void
     return EvalError.UndefinedVariable;
 }
 
-pub fn lookup(self: *Self, name: []const u8) !Ast.LoxValue {
+pub fn lookup(self: *Self, name: []const u8) !Values.LoxValue {
     if (self.values.get(name)) |val| {
         return val;
     } else if (self.enclosing) |enclosing| {

@@ -1,12 +1,13 @@
 const std = @import("std");
 
 const Ast = @import("ast.zig");
+const Values = @import("values.zig");
 const Diagnostics = @import("diagnostics.zig");
 
 const ParseError = @import("errors.zig").ParseError;
 
 const Expr = Ast.Expr;
-const LoxValue = Ast.LoxValue;
+const LoxValue = Values.LoxValue;
 const Program = Ast.Program;
 const Stmt = Ast.Stmt;
 

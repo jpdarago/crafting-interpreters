@@ -1,6 +1,7 @@
 const std = @import("std");
 
 const Ast = @import("ast.zig");
+const Values = @import("values.zig");
 
 const Diagnostics = @import("diagnostics.zig");
 
@@ -26,13 +27,13 @@ environment: Environment,
 
 string_pool: std.heap.ArenaAllocator,
 
-fn native_clock_gettime(_: *Diagnostics, _: []const Ast.LoxValue) EvalError!Ast.LoxValue {
-    return Ast.LoxValue{
+fn native_clock_gettime(_: *Diagnostics, _: []const Values.LoxValue) EvalError!Values.LoxValue {
+    return Values.LoxValue{
         .number = @floatFromInt(std.time.microTimestamp()),
     };
 }
 
-fn native_strlen(diagnostics: *Diagnostics, args: []const Ast.LoxValue) EvalError!Ast.LoxValue {
+fn native_strlen(diagnostics: *Diagnostics, args: []const Values.LoxValue) EvalError!Values.LoxValue {
 
     const val = args[0];
 
@@ -41,7 +42,7 @@ fn native_strlen(diagnostics: *Diagnostics, args: []const Ast.LoxValue) EvalErro
         return EvalError.InvalidArguments;
     }
 
-    return Ast.LoxValue{
+    return Values.LoxValue{
         .number = @floatFromInt(val.string.len)
     };
 }
@@ -49,11 +50,11 @@ fn native_strlen(diagnostics: *Diagnostics, args: []const Ast.LoxValue) EvalErro
 pub fn init(allocator: std.mem.Allocator, diagnostics: *Diagnostics, parser: *Parser) EvalError!Self {
     var environment = Environment.init(allocator, null);
 
-    const clock_callable = Ast.LoxValue{ .callable = Ast.LoxCallable{ .native = Ast.NativeFunction{ .arity = 0, .name = "gettime", .call = native_clock_gettime } } };
+    const clock_callable = Values.LoxValue{ .callable = Values.LoxCallable{ .native = Values.NativeFunction{ .arity = 0, .name = "gettime", .call = native_clock_gettime } } };
 
     _ = try environment.define("clock", clock_callable);
 
-    const strlen_callable = Ast.LoxValue{ .callable = Ast.LoxCallable{ .native = Ast.NativeFunction{ .arity = 1, .name = "gettime", .call = native_strlen } } };
+    const strlen_callable = Values.LoxValue{ .callable = Values.LoxCallable{ .native = Values.NativeFunction{ .arity = 1, .name = "gettime", .call = native_strlen } } };
 
     _ = try environment.define("strlen", strlen_callable);
 
@@ -67,11 +68,11 @@ pub fn deinit(self: *Self) void {
     self.string_pool.deinit();
 }
 
-pub fn evaluate(self: *Self) !Ast.LoxValue {
+pub fn evaluate(self: *Self) !Values.LoxValue {
     var program = try self.parser.parse();
     defer program.deinit();
 
-    var result: Ast.LoxValue = .nil;
+    var result: Values.LoxValue = .nil;
 
     var it = program.statements.constIterator(0);
 
@@ -82,13 +83,13 @@ pub fn evaluate(self: *Self) !Ast.LoxValue {
     return result;
 }
 
-fn evaluate_statement(self: *Self, stmt: *const Ast.Stmt, env: *Environment) EvalError!Ast.LoxValue {
+fn evaluate_statement(self: *Self, stmt: *const Ast.Stmt, env: *Environment) EvalError!Values.LoxValue {
     switch (stmt.*) {
         .expression => |expr| {
             return try self.evaluate_expr(expr.expression, env);
         },
         .variable => |variable| {
-            var val: Ast.LoxValue = .nil;
+            var val: Values.LoxValue = .nil;
 
             if (variable.initializer) |initializer| {
                 val = try self.evaluate_expr(initializer, env);
@@ -159,7 +160,7 @@ fn evaluate_statement(self: *Self, stmt: *const Ast.Stmt, env: *Environment) Eva
             }
 
             while (true) {
-                var cond = Ast.LoxValue{ .boolean = true };
+                var cond = Values.LoxValue{ .boolean = true };
 
                 if (loop.condition) |condition| {
                     cond = try self.evaluate_expr(condition, env);
@@ -207,7 +208,7 @@ fn evaluate_block(self: *Self, block: Ast.Stmt.Block, env: *Environment) EvalErr
     }
 }
 
-fn evaluate_expr(self: *Self, expr: *const Ast.Expr, env: *Environment) EvalError!Ast.LoxValue {
+fn evaluate_expr(self: *Self, expr: *const Ast.Expr, env: *Environment) EvalError!Values.LoxValue {
     switch (expr.*) {
         .literal => |lit| {
             return lit.value;
@@ -231,7 +232,7 @@ fn evaluate_expr(self: *Self, expr: *const Ast.Expr, env: *Environment) EvalErro
                 return EvalError.InvalidArguments;
             }
 
-            var args = std.ArrayList(Ast.LoxValue).initCapacity(arena.allocator(), num_args) catch return EvalError.InternalFailure;
+            var args = std.ArrayList(Values.LoxValue).initCapacity(arena.allocator(), num_args) catch return EvalError.InternalFailure;
             defer args.deinit(arena.allocator());
 
             for (call.args.items) |arg| {
@@ -254,10 +255,10 @@ fn evaluate_expr(self: *Self, expr: *const Ast.Expr, env: *Environment) EvalErro
                 .PLUS => {
                     switch (lhs) {
                         .number => {
-                            return Ast.LoxValue{ .number = lhs.number + rhs.number };
+                            return Values.LoxValue{ .number = lhs.number + rhs.number };
                         },
                         .string => {
-                            return Ast.LoxValue{ .string = try self.concat_strings(lhs.string, rhs.string) };
+                            return Values.LoxValue{ .string = try self.concat_strings(lhs.string, rhs.string) };
                         },
                         else => unreachable,
                     }
@@ -267,14 +268,14 @@ fn evaluate_expr(self: *Self, expr: *const Ast.Expr, env: *Environment) EvalErro
 
                     const r = try self.check_number(bin.operator, rhs);
 
-                    return Ast.LoxValue{ .number = l - r };
+                    return Values.LoxValue{ .number = l - r };
                 },
                 .STAR => {
                     const l = try self.check_number(bin.operator, lhs);
 
                     const r = try self.check_number(bin.operator, rhs);
 
-                    return Ast.LoxValue{ .number = l * r };
+                    return Values.LoxValue{ .number = l * r };
                 },
                 .SLASH => {
                     const l = try self.check_number(bin.operator, lhs);
@@ -286,41 +287,41 @@ fn evaluate_expr(self: *Self, expr: *const Ast.Expr, env: *Environment) EvalErro
                         return error.InvalidExpression;
                     }
 
-                    return Ast.LoxValue{ .number = l / r };
+                    return Values.LoxValue{ .number = l / r };
                 },
                 .GREATER => {
                     const l = try self.check_number(bin.operator, lhs);
 
                     const r = try self.check_number(bin.operator, rhs);
 
-                    return Ast.LoxValue{ .boolean = l > r };
+                    return Values.LoxValue{ .boolean = l > r };
                 },
                 .GREATER_EQUAL => {
                     const l = try self.check_number(bin.operator, lhs);
 
                     const r = try self.check_number(bin.operator, rhs);
 
-                    return Ast.LoxValue{ .boolean = l >= r };
+                    return Values.LoxValue{ .boolean = l >= r };
                 },
                 .LESS => {
                     const l = try self.check_number(bin.operator, lhs);
 
                     const r = try self.check_number(bin.operator, rhs);
 
-                    return Ast.LoxValue{ .boolean = l < r };
+                    return Values.LoxValue{ .boolean = l < r };
                 },
                 .LESS_EQUAL => {
                     const l = try self.check_number(bin.operator, lhs);
 
                     const r = try self.check_number(bin.operator, rhs);
 
-                    return Ast.LoxValue{ .boolean = l <= r };
+                    return Values.LoxValue{ .boolean = l <= r };
                 },
                 .EQUAL_EQUAL => {
-                    return Ast.LoxValue{ .boolean = try self.are_equal(bin.operator, lhs, rhs) };
+                    return Values.LoxValue{ .boolean = try self.are_equal(bin.operator, lhs, rhs) };
                 },
                 .BANG_EQUAL => {
-                    return Ast.LoxValue{ .boolean = !try self.are_equal(bin.operator, lhs, rhs) };
+                    return Values.LoxValue{ .boolean = !try self.are_equal(bin.operator, lhs, rhs) };
                 },
                 else => {
                     return error.InvalidExpression;
@@ -331,13 +332,13 @@ fn evaluate_expr(self: *Self, expr: *const Ast.Expr, env: *Environment) EvalErro
             const val = try self.evaluate_expr(un.expression, env);
 
             if (un.operator.type == .MINUS) {
-                return Ast.LoxValue{ .number = -try self.check_number(un.operator, val) };
+                return Values.LoxValue{ .number = -try self.check_number(un.operator, val) };
             }
 
             if (un.operator.type == .BANG) {
                 try self.check_tag(un.operator, val, .{ .nil, .boolean });
 
-                return Ast.LoxValue{ .boolean = !is_truthy(val) };
+                return Values.LoxValue{ .boolean = !is_truthy(val) };
             }
         },
         .grouping => |grouping| {
@@ -379,7 +380,7 @@ fn evaluate_expr(self: *Self, expr: *const Ast.Expr, env: *Environment) EvalErro
     return error.InvalidExpression;
 }
 
-fn check_tag(self: *Self, token: Ast.Token, val: Ast.LoxValue, comptime tags: anytype) EvalError!void {
+fn check_tag(self: *Self, token: Ast.Token, val: Values.LoxValue, comptime tags: anytype) EvalError!void {
     const tag = std.meta.activeTag(val);
 
     inline for (tags) |t| {
@@ -393,13 +394,13 @@ fn check_tag(self: *Self, token: Ast.Token, val: Ast.LoxValue, comptime tags: an
     return error.InvalidExpression;
 }
 
-fn check_number(self: *Self, token: Ast.Token, lhs: Ast.LoxValue) EvalError!f64 {
+fn check_number(self: *Self, token: Ast.Token, lhs: Values.LoxValue) EvalError!f64 {
     try self.check_tag(token, lhs, .{.number});
 
     return lhs.number;
 }
 
-fn check_bool(lhs: *Ast.LoxValue) EvalError!f64 {
+fn check_bool(lhs: *Values.LoxValue) EvalError!f64 {
     try check_tag(lhs, .{.number});
 
     if (std.meta.activeTag(lhs) != .number) {
@@ -409,7 +410,7 @@ fn check_bool(lhs: *Ast.LoxValue) EvalError!f64 {
     return lhs.number;
 }
 
-fn is_truthy(val: Ast.LoxValue) bool {
+fn is_truthy(val: Values.LoxValue) bool {
     return switch (val) {
         .boolean => |b| b,
         .nil => false,
@@ -417,14 +418,14 @@ fn is_truthy(val: Ast.LoxValue) bool {
     };
 }
 
-fn check_same_tag(self: *Self, token: Ast.Token, lhs: Ast.LoxValue, rhs: Ast.LoxValue) EvalError!void {
+fn check_same_tag(self: *Self, token: Ast.Token, lhs: Values.LoxValue, rhs: Values.LoxValue) EvalError!void {
     if (@intFromEnum(lhs) != @intFromEnum(rhs)) {
         self.diagnostics.report_error(token.line, "Mismatched types");
         return error.TypeMismatch;
     }
 }
 
-fn are_equal(self: *Self, token: Ast.Token, lhs: Ast.LoxValue, rhs: Ast.LoxValue) EvalError!bool {
+fn are_equal(self: *Self, token: Ast.Token, lhs: Values.LoxValue, rhs: Values.LoxValue) EvalError!bool {
     try self.check_same_tag(token, lhs, rhs);
 
     return switch (lhs) {

@@ -1,6 +1,7 @@
 const std = @import("std");
 
 const Ast = @import("ast.zig");
+const Values = @import("values.zig");
 
 const Diagnostics = @import("diagnostics.zig");
 
@@ -22,7 +23,7 @@ pub fn init(allocator: std.mem.Allocator, diagnostics: *Diagnostics) Self {
     return Self{ .allocator = allocator, .diagnostics = diagnostics };
 }
 
-pub fn run(self: *Self, code: []const u8) !Ast.LoxValue {
+pub fn run(self: *Self, code: []const u8) !Values.LoxValue {
     var scanner = Scanner.init(self.allocator, self.diagnostics, code);
     defer scanner.deinit();
 
