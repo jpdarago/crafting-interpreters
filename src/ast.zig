@@ -370,7 +370,7 @@ pub const Stmt = union(enum) {
 
         name: Scanner.Token,
 
-        params: std.SegmentedList(*Scanner.Token, 4),
+        params: std.SegmentedList(Scanner.Token, 4),
 
         body: std.SegmentedList(*Ref, 4),
 

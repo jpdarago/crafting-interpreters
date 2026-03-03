@@ -1,0 +1,7 @@
+// Native strlen function.
+print strlen("hello");
+print strlen("");
+print strlen("crafting interpreters");
+
+var greeting = "Hello" + ", " + "world!";
+print strlen(greeting);

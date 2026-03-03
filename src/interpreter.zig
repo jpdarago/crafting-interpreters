@@ -28,18 +28,35 @@ environment: Environment,
 
 string_pool: std.heap.ArenaAllocator,
 
-fn clock_gettime(_: []const Ast.LoxValue) EvalError!Ast.LoxValue {
+fn native_clock_gettime(_: []const Ast.LoxValue) EvalError!Ast.LoxValue {
     return Ast.LoxValue{
         .number = @floatFromInt(std.time.microTimestamp()),
+    };
+}
+
+fn native_strlen(args: []const Ast.LoxValue) EvalError!Ast.LoxValue {
+
+    const val = args[0];
+
+    if (val != .string) {
+        return EvalError.InvalidArguments;
+    }
+
+    return Ast.LoxValue{
+        .number = @floatFromInt(val.string.len)
     };
 }
 
 pub fn init(allocator: std.mem.Allocator, diagnostics: *Diagnostics, parser: *Parser) EvalError!Self {
     var environment = Environment.init(allocator, null);
 
-    const callable = Ast.LoxValue{ .callable = Ast.LoxCallable{ .native = Ast.NativeFunction{ .arity = 0, .name = "gettime", .call = clock_gettime } } };
+    const clock_callable = Ast.LoxValue{ .callable = Ast.LoxCallable{ .native = Ast.NativeFunction{ .arity = 0, .name = "gettime", .call = native_clock_gettime } } };
 
-    _ = try environment.define("clock", callable);
+    _ = try environment.define("clock", clock_callable);
+
+    const strlen_callable = Ast.LoxValue{ .callable = Ast.LoxCallable{ .native = Ast.NativeFunction{ .arity = 1, .name = "gettime", .call = native_strlen } } };
+
+    _ = try environment.define("strlen", strlen_callable);
 
     const pool = std.heap.ArenaAllocator.init(allocator);
 
@@ -173,6 +190,10 @@ fn evaluate_statement(self: *Self, stmt: *const Ast.Stmt, env: *Environment) Eva
 
             return .nil;
         },
+        .function => |_| {
+            // Pass.
+            @panic("Not implemented");
+        }
     }
 }
 

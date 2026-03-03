@@ -112,28 +112,32 @@ fn function(self: *Self, kind: []const u8) !*Stmt {
     var buf: [256]u8 = undefined;
 
     const name = blk: {
-        std.fmt.bufPrint(&buf, "Expected {} name.", .{kind});
+        _ = std.fmt.bufPrint(&buf, "Expected {s} name.", .{kind}) catch {
+            return ParseError.OutOfMemory;
+        };
 
-        break :blk try self.consume(.IDENTIFIER, buf);
+        break :blk try self.consume(.IDENTIFIER, &buf);
     };
 
     {
-        std.fmt.bufPrint(&buf, "Expected '(' after {} name.", .{kind});
+        _ = std.fmt.bufPrint(&buf, "Expected '(' after {s} name.", .{kind}) catch {
+            return ParseError.OutOfMemory;
+        };
 
-        try self.consume(.LEFT_PAREN, buf);
+        _ = try self.consume(.LEFT_PAREN, &buf);
     }
 
-    const parameters = std.SegmentedList(*Stmt, 4){};
+    var parameters = std.SegmentedList(Scanner.Token, 4){};
 
     if (!self.check(.LEFT_PAREN)) {
         while (true) {
             if (parameters.len >= 255) {
-                self.report_error(self.peek().?, "Too many parameters (> 255).");
+                self.diagnostics.report_error(self.peek().?.line, "Too many parameters (> 255).");
 
                 return ParseError.MaximumArgumentsExceeded;
             }
 
-            parameters.append(self.allocator, try self.consume(.IDENTIFIER, "Expected parameter name."));
+            try parameters.append(self.allocator, try self.consume(.IDENTIFIER, "Expected parameter name."));
 
             if (!self.match(.{.COMMA})) {
                 break;
@@ -141,7 +145,14 @@ fn function(self: *Self, kind: []const u8) !*Stmt {
         }
     }
 
-    self.consume(.RIGHT_PAREN, "Expected ')' after parameters.");
+    _ = try self.consume(.RIGHT_PAREN, "Expected ')' after parameters.");
+    const body = try self.statements_for_block();
+    return self.make_statement(Stmt.Function {
+        .name = name,
+        .body = body,
+        .allocator = self.allocator,
+        .params = parameters
+    });
 }
 
 fn var_declaration(self: *Self) !*Stmt {
@@ -168,7 +179,7 @@ fn synchronize(self: *Self) void {
 
         switch (self.peek().?.type) {
             .CLASS => return,
-            .FUN => return,
+            .FUNCTION => return,
             .VAR => return,
             .FOR => return,
             .IF => return,
@@ -200,7 +211,10 @@ fn statement(self: *Self) !*Stmt {
     }
 
     if (self.match(.{.LEFT_BRACE})) {
-        return self.block();
+        return self.make_statement(Stmt.Block {
+            .statements = try self.statements_for_block(),
+            .allocator = self.allocator
+        });
     }
 
     return self.expression_statement();
@@ -256,24 +270,21 @@ fn if_statement(self: *Self) ParseError!*Stmt {
     const if_branch = try self.statement();
     const else_branch: ?*Stmt = if (self.match(.{.ELSE})) try self.statement() else null;
 
-    return self.make_statement(Stmt.Conditional{ .allocator = self.allocator, .condition = cond, .if_branch = if_branch, .else_branch = else_branch });
+    return self.make_statement(Stmt.Conditional{ .condition = cond, .if_branch = if_branch, .else_branch = else_branch });
 }
 
-fn block(self: *Self) ParseError!*Stmt {
-    var result = Stmt.Block{
-        .allocator = self.allocator,
-        .statements = std.SegmentedList(*Stmt, 4){},
-    };
+fn statements_for_block(self: *Self) ParseError!std.SegmentedList(*Stmt, 4) {
+    var statements = std.SegmentedList(*Stmt, 4){};
 
     while (!self.check(.RIGHT_BRACE) and !self.at_end()) {
         const stmt = try self.declaration();
 
-        try result.statements.append(self.allocator, stmt);
+        try statements.append(self.allocator, stmt);
     }
 
     _ = try self.consume(.RIGHT_BRACE, "Expected '}' after block.");
 
-    return self.make_statement(result);
+    return statements;
 }
 
 fn print_statement(self: *Self) ParseError!*Stmt {
