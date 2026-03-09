@@ -143,7 +143,6 @@ fn function(self: *Self, kind: []const u8) !*Stmt {
                 break;
             }
         }
-        
     }
 
     _ = try self.consume(.RIGHT_PAREN, "Expected ')'");
@@ -217,19 +216,15 @@ fn statement(self: *Self) !*Stmt {
     }
 
     if (self.match(.{.LEFT_BRACE})) {
-        return self.make_statement(Stmt.Block {
-            .statements = try self.statements_for_block(),
-            .allocator = self.allocator
-        });
+        return self.make_statement(Stmt.Block{ .statements = try self.statements_for_block(), .allocator = self.allocator });
     }
 
     return self.expression_statement();
 }
 
 fn return_statement(self: *Self) !*Stmt {
-
     const keyword = self.previous().?;
-    var expr : ?*Expr = null;
+    var expr: ?*Expr = null;
 
     if (!self.check(.SEMICOLON)) {
         expr = try self.expression();
@@ -237,10 +232,7 @@ fn return_statement(self: *Self) !*Stmt {
 
     _ = try self.consume(.SEMICOLON, "Expected ';' after value");
 
-    return self.make_statement(Stmt.Return{ 
-        .keyword = keyword,
-        .expression = expr 
-    });
+    return self.make_statement(Stmt.Return{ .keyword = keyword, .expression = expr });
 }
 
 fn for_statement(self: *Self) ParseError!*Stmt {
@@ -351,7 +343,7 @@ fn assignment(self: *Self) ParseError!*Expr {
         const equals = self.previous().?;
         const value = try self.assignment();
 
-        switch (expr.*) {
+        switch (expr.data) {
             .variable => |variable| {
                 return self.make_node(Expr.Assign{ .name = variable.name, .value = value });
             },

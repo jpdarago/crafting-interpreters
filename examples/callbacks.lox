@@ -1,0 +1,30 @@
+// Callbacks: passing functions as arguments and returning results.
+
+fun apply(f, x) {
+  return f(x);
+}
+
+fun double(n) {
+  return n * 2;
+}
+
+fun negate(n) {
+  return -n;
+}
+
+print apply(double, 5);
+print apply(negate, 3);
+
+// Composing two functions into a new one via closures.
+fun compose(f, g) {
+  fun composed(x) {
+    return f(g(x));
+  }
+  return composed;
+}
+
+var doubleNeg = compose(double, negate);
+print doubleNeg(4);
+
+var negDouble = compose(negate, double);
+print negDouble(4);

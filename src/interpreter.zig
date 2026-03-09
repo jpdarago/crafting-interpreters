@@ -5,8 +5,6 @@ const Values = @import("values.zig");
 
 const Diagnostics = @import("diagnostics.zig");
 
-const Parser = @import("parser.zig");
-
 const Environment = @import("environment.zig");
 
 const Natives = @import("natives.zig");
@@ -37,7 +35,6 @@ env_pool: std.heap.ArenaAllocator,
 globals: *Environment,
 
 pub fn init(allocator: std.mem.Allocator, diagnostics: *Diagnostics) EvalError!Self {
-
     const string_pool = std.heap.ArenaAllocator.init(allocator);
 
     const env_pool = std.heap.ArenaAllocator.init(allocator);
@@ -60,10 +57,7 @@ pub fn deinit(self: *Self) void {
     self.string_pool.deinit();
 }
 
-pub fn evaluate(self: *Self, parser: *Parser) !Values.LoxValue {
-    var program = try parser.parse();
-    defer program.deinit();
-
+pub fn evaluate(self: *Self, program: *const Ast.Program) !Values.LoxValue {
     var result: Values.LoxValue = .nil;
 
     var it = program.statements.constIterator(0);
@@ -197,14 +191,7 @@ fn evaluate_statement(self: *Self, stmt: *const Ast.Stmt, env: *Environment) Eva
             return .{ .value = .nil };
         },
         .function => |func| {
-
-            const function = Values.LoxFunction{
-                .name = func.name,
-                .body = func.body.items,
-                .arity = @intCast(func.params.items.len),
-                .params = func.params.items,
-                .closure = env
-            };
+            const function = Values.LoxFunction{ .name = func.name, .body = func.body.items, .arity = @intCast(func.params.items.len), .params = func.params.items, .closure = env };
 
             try self.environment.define(func.name.lexeme, Values.LoxValue{ .callable = .{ .function = function } });
 
@@ -214,7 +201,6 @@ fn evaluate_statement(self: *Self, stmt: *const Ast.Stmt, env: *Environment) Eva
 }
 
 fn evaluate_block(self: *Self, block: Ast.Stmt.Block, env: *Environment) EvalError!StmtResult {
-
     const new_env = try self.create_env(env);
 
     var it = block.statements.constIterator(0);
@@ -228,7 +214,7 @@ fn evaluate_block(self: *Self, block: Ast.Stmt.Block, env: *Environment) EvalErr
 }
 
 fn evaluate_expr(self: *Self, expr: *const Ast.Expr, env: *Environment) EvalError!Values.LoxValue {
-    switch (expr.*) {
+    switch (expr.data) {
         .literal => |lit| {
             return lit.value;
         },
@@ -261,7 +247,6 @@ fn evaluate_expr(self: *Self, expr: *const Ast.Expr, env: *Environment) EvalErro
             return switch (callee) {
                 .native => |native| native.call(self.diagnostics, args.items),
                 .function => |func| {
-
                     var new_env = try self.create_env(func.closure);
 
                     for (func.params, 0..) |param, i| {
@@ -274,7 +259,7 @@ fn evaluate_expr(self: *Self, expr: *const Ast.Expr, env: *Environment) EvalErro
                     }
 
                     return .nil;
-                }
+                },
             };
         },
         .binary => |bin| {
@@ -378,16 +363,19 @@ fn evaluate_expr(self: *Self, expr: *const Ast.Expr, env: *Environment) EvalErro
             return self.evaluate_expr(grouping.expression, env);
         },
         .variable => |variable| {
-            return env.lookup(variable.name.lexeme) catch {
-                // TODO(jp): Pass the file to diagnostics and change report_error to take anyargs as well.
-                // TODO(jp): Check the error type.
+            const source = try self.resolve_environment(env, expr);
+
+            return source.lookup(variable.name.lexeme) catch {
                 self.diagnostics.report("<inline>", variable.name.line, "Undefined variable '{s}'", .{variable.name.lexeme});
                 return EvalError.UndefinedVariable;
             };
         },
         .assign => |assign| {
             const value = try self.evaluate_expr(assign.value, env);
-            env.assign(assign.name.lexeme, value) catch |err| {
+
+            const source = try self.resolve_environment(env, expr);
+
+            source.assign(assign.name.lexeme, value) catch |err| {
                 self.diagnostics.report("<inline>", assign.name.line, "Undefined variable {s}", .{assign.name.lexeme});
                 return err;
             };
@@ -411,6 +399,20 @@ fn evaluate_expr(self: *Self, expr: *const Ast.Expr, env: *Environment) EvalErro
     }
 
     return error.InvalidExpression;
+}
+
+fn resolve_environment(self: *Self, env: *Environment, expr: *const Ast.Expr) EvalError!*Environment {
+    if (expr.depth) |start_depth| {
+        var depth : i32 = start_depth;
+        var source = env;
+        while (depth > 0) {
+            source = source.enclosing orelse return EvalError.InternalFailure;
+            depth -= 1;
+        }
+        return source;
+    } else {
+        return self.globals;
+    }
 }
 
 fn check_tag(self: *Self, token: Ast.Token, val: Values.LoxValue, comptime tags: anytype) EvalError!void {

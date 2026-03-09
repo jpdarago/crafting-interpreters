@@ -1,0 +1,15 @@
+// Static variable resolution: closures bind to the scope where they are defined.
+
+// Without a resolver, the second call would print "block" because the
+// inner variable would shadow the outer one at runtime. With static
+// resolution, both calls correctly print "global".
+var a = "global";
+{
+  fun showA() {
+    print a;
+  }
+
+  showA();
+  var a = "block";
+  showA();
+}

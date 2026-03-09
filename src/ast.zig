@@ -63,12 +63,13 @@ pub const Token = struct { type: TokenType, lexeme: []const u8, line: usize, off
 
 const WriteError = error{WriteFailed};
 
-pub const Expr = union(enum) {
+pub const Expr = struct {
     const Ref = @This();
 
-    pub const Binary = struct {
-        const Self = @This();
+    data: Data,
+    depth: ?i32,
 
+    pub const Binary = struct {
         left: *Ref,
 
         operator: Token,
@@ -77,8 +78,6 @@ pub const Expr = union(enum) {
     };
 
     pub const Call = struct {
-        const Self = @This();
-
         callee: *Ref,
 
         paren: Token,
@@ -89,48 +88,36 @@ pub const Expr = union(enum) {
 
         // TODO(jp): Maybe we do not need this and we should instead allocate
         // in the parser the memory for parameters.
-        pub fn deinit(self: *Self) void {
+        pub fn deinit(self: *Call) void {
             self.args.deinit(self.allocator);
         }
     };
 
     pub const Grouping = struct {
-        const Self = @This();
-
         expression: *Ref,
     };
 
     pub const Literal = struct {
-        const Self = @This();
-
         value: LoxValue,
     };
 
     pub const Unary = struct {
-        const Self = @This();
-
         operator: Token,
 
         expression: *Ref,
     };
 
     pub const Variable = struct {
-        const Self = @This();
-
         name: Token,
     };
 
     pub const Assign = struct {
-        const Self = @This();
-
         name: Token,
 
         value: *Ref,
     };
 
     pub const Logical = struct {
-        const Self = @This();
-
         left: *Ref,
 
         operator: Token,
@@ -138,14 +125,25 @@ pub const Expr = union(enum) {
         right: *Ref,
     };
 
+    pub const Data = union(enum) {
+        binary: Binary,
+        call: Call,
+        grouping: Grouping,
+        literal: Literal,
+        unary: Unary,
+        variable: Variable,
+        assign: Assign,
+        logical: Logical,
+    };
+
     pub fn make(value: anytype) Ref {
         const T = @TypeOf(value);
 
-        const ui = @typeInfo(Ref);
+        const ui = @typeInfo(Data);
 
         inline for (ui.@"union".fields) |f| {
             if (T == f.type) {
-                return @unionInit(Ref, f.name, value);
+                return Ref{ .data = @unionInit(Data, f.name, value), .depth = null };
             }
         }
 
@@ -153,7 +151,7 @@ pub const Expr = union(enum) {
     }
 
     pub fn deinit(self: *Ref) void {
-        switch (self.*) {
+        switch (self.data) {
             .call => |*call| {
                 call.deinit();
             },
@@ -162,7 +160,7 @@ pub const Expr = union(enum) {
     }
 
     pub fn write(self: *const Ref, writer: *std.io.Writer) WriteError!void {
-        switch (self.*) {
+        switch (self.data) {
             .literal => |lit| {
                 try lit.value.write(writer);
             },
@@ -226,15 +224,6 @@ pub const Expr = union(enum) {
             },
         }
     }
-
-    binary: Binary,
-    call: Call,
-    grouping: Grouping,
-    literal: Literal,
-    unary: Unary,
-    variable: Variable,
-    assign: Assign,
-    logical: Logical,
 };
 
 pub const Stmt = union(enum) {
@@ -281,7 +270,6 @@ pub const Stmt = union(enum) {
     };
 
     pub const Return = struct {
-        
         const Self = @This();
 
         keyword: Token,

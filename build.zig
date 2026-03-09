@@ -31,19 +31,39 @@ pub fn build(b: *std.Build) void {
     const clean_cmd = b.addSystemCommand(&.{ "rm", "-rf", ".zig-cache", "zig-out" });
     clean_step.dependOn(&clean_cmd.step);
 
-    // ---- examples (run all examples/*.lox) ----
+    // ---- examples (run all examples/*.lox sequentially) ----
     const examples_step = b.step("examples", "Run all example .lox files");
     {
         var dir = std.fs.cwd().openDir("examples", .{ .iterate = true }) catch return;
         defer dir.close();
+
+        // Collect filenames so we can sort them for deterministic order.
+        var names: std.ArrayList([]const u8) = .empty;
         var it = dir.iterate();
         while (it.next() catch return) |entry| {
             if (entry.kind == .file and std.mem.endsWith(u8, entry.name, ".lox")) {
-                const r = b.addRunArtifact(exe);
-                r.addArg(b.fmt("examples/{s}", .{entry.name}));
-                examples_step.dependOn(&r.step);
+                names.append(b.graph.arena, b.dupe(entry.name)) catch return;
             }
         }
+        std.mem.sort([]const u8, names.items, {}, struct {
+            fn cmp(_: void, a: []const u8, c: []const u8) bool {
+                return std.mem.order(u8, a, c) == .lt;
+            }
+        }.cmp);
+
+        // Chain: echo header -> run example -> echo header -> run example -> ...
+        var prev: ?*std.Build.Step = null;
+        for (names.items) |name| {
+            const print_cmd = b.addSystemCommand(&.{ "echo", b.fmt("\n=== examples/{s} ===", .{name}) });
+            const run = b.addRunArtifact(exe);
+            run.addArg(b.fmt("examples/{s}", .{name}));
+
+            // Chain sequentially.
+            if (prev) |p| print_cmd.step.dependOn(p);
+            run.step.dependOn(&print_cmd.step);
+            prev = &run.step;
+        }
+        if (prev) |p| examples_step.dependOn(p);
     }
 }
 

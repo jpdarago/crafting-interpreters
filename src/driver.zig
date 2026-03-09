@@ -11,6 +11,8 @@ const Parser = @import("parser.zig");
 
 const Interpreter = @import("interpreter.zig");
 
+const Resolver = @import("resolver.zig");
+
 const Self = @This();
 
 const Stdfile = std.fs.File;
@@ -32,10 +34,18 @@ pub fn run(self: *Self, code: []const u8) !Values.LoxValue {
     var parser = Parser.init(self.allocator, self.diagnostics, tokens);
     defer parser.deinit();
 
+    var program = try parser.parse();
+    defer program.deinit();
+
     var interpreter = try Interpreter.init(self.allocator, self.diagnostics);
     defer interpreter.deinit();
 
-    return try interpreter.evaluate(&parser);
+    var resolver = try Resolver.init(self.allocator, self.diagnostics);
+    defer resolver.deinit();
+
+    try resolver.resolve(&program);
+
+    return try interpreter.evaluate(&program);
 }
 
 pub fn run_and_print(self: *Self, code: []const u8) !void {
@@ -60,7 +70,15 @@ fn run_line(self: *Self, interpreter: *Interpreter, code: []const u8) !void {
     var parser = Parser.init(self.allocator, self.diagnostics, tokens);
     defer parser.deinit();
 
-    const value = try interpreter.evaluate(&parser);
+    var program = try parser.parse();
+    defer program.deinit();
+
+    var resolver = try Resolver.init(self.allocator, self.diagnostics);
+    defer resolver.deinit();
+
+    try resolver.resolve(&program);
+
+    const value = try interpreter.evaluate(&program);
 
     if (value != .nil) {
         var buffer: [1024]u8 = undefined;
